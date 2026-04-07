@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import PostDetail from "./pages/PostDetail";
 import CategoryPage from "./pages/CategoryPage";
+import ProfilePage from "./pages/ProfilePage";
 import AuthPage from "./pages/AuthPage";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/post/:slug" element={<PostDetail />} />
             <Route path="/category/:slug" element={<CategoryPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />

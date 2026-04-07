@@ -6,9 +6,10 @@ import SearchOverlay from "@/components/SearchOverlay";
 
 type MenuType = "news" | "blog" | "directory" | null;
 
+type CategoryItem = { name: string; slug: string };
 type CategoryGroup = {
   letter: string;
-  items: string[];
+  items: CategoryItem[];
 };
 
 const menuConfig = {
@@ -25,17 +26,17 @@ function useDynamicCategories(type: "news" | "blog" | "directory") {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
-        .select("name, letter")
+        .select("name, letter, slug")
         .eq("type", type)
         .order("letter")
         .order("name");
       if (error) throw error;
       
-      const grouped: Record<string, string[]> = {};
+      const grouped: Record<string, CategoryItem[]> = {};
       data?.forEach(cat => {
         const letter = cat.letter || cat.name[0];
         if (!grouped[letter]) grouped[letter] = [];
-        grouped[letter].push(cat.name);
+        grouped[letter].push({ name: cat.name, slug: cat.slug });
       });
       
       return Object.entries(grouped).map(([letter, items]) => ({ letter, items })) as CategoryGroup[];

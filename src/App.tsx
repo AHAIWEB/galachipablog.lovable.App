@@ -21,6 +21,7 @@ import AdminActivity from "./pages/admin/AdminActivity";
 import AdminPhotocard from "./pages/admin/AdminPhotocard";
 import AdminWebP from "./pages/admin/AdminWebP";
 import AdminQuoteCard from "./pages/admin/AdminQuoteCard";
+import AdminSecurity from "./pages/admin/AdminSecurity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="photocard" element={<AdminPhotocard />} />
               <Route path="webp" element={<AdminWebP />} />
               <Route path="quotecard" element={<AdminQuoteCard />} />
+              <Route path="security" element={<AdminSecurity />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

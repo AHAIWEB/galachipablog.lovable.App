@@ -1,19 +1,17 @@
 import { NavLink as RouterNavLink } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
   FileText,
   FolderTree,
   CreditCard,
-  Palette,
   Users,
   Rss,
   Activity,
-  LogOut,
-  Home,
   ImageIcon,
   Zap,
   Quote,
+  Palette,
+  Shield,
 } from "lucide-react";
 
 const navItems = [
@@ -27,19 +25,14 @@ const navItems = [
   { to: "/admin/activity", icon: Activity, label: "অ্যাক্টিভিটি লগ" },
   { to: "/admin/photocard", icon: ImageIcon, label: "ফটোকার্ড মেকার" },
   { to: "/admin/webp", icon: Zap, label: "WebP কনভার্টার" },
-  { to: "/admin/quotecard", icon: Quote, label: "কোট কার্ড এডিটর" },
+  { to: "/admin/quotecard", icon: Quote, label: "কোট কার্ড" },
+  { to: "/admin/security", icon: Shield, label: "সিকিউরিটি" },
 ];
 
 export default function AdminSidebar() {
-  const { signOut } = useAuth();
-
   return (
-    <aside className="w-60 bg-card border-r border-border flex flex-col shrink-0">
-      <div className="p-4 border-b border-border">
-        <h2 className="font-heading font-bold text-lg">এডমিন প্যানেল</h2>
-      </div>
-
-      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+    <aside className="w-56 bg-card border-r border-border flex flex-col shrink-0 h-full overflow-y-auto">
+      <nav className="flex-1 p-2 space-y-0.5">
         {navItems.map(item => (
           <RouterNavLink
             key={item.to}
@@ -58,23 +51,6 @@ export default function AdminSidebar() {
           </RouterNavLink>
         ))}
       </nav>
-
-      <div className="p-2 border-t border-border space-y-0.5">
-        <RouterNavLink
-          to="/"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
-        >
-          <Home className="h-4 w-4" />
-          সাইটে যান
-        </RouterNavLink>
-        <button
-          onClick={signOut}
-          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors w-full text-left"
-        >
-          <LogOut className="h-4 w-4" />
-          লগআউট
-        </button>
-      </div>
     </aside>
   );
 }

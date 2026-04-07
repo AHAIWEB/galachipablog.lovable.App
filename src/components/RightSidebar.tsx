@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function RightSidebar() {
   const [cardIdx, setCardIdx] = useState(0);
@@ -44,53 +44,54 @@ export default function RightSidebar() {
   return (
     <div className="space-y-4">
       {/* Directory Index */}
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
         <div className="px-3 py-2.5 bg-accent text-accent-foreground border-b border-border">
           <h3 className="font-heading font-bold text-sm">📂 ইনডেক্স লিস্ট</h3>
         </div>
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-border stagger-fade">
           {dirPosts.length === 0 ? (
             <p className="p-3 text-xs text-muted-foreground">ডিরেক্টরি পোস্ট নেই</p>
           ) : (
             dirPosts.map(entry => (
-              <a key={entry.id} href="#" className="block p-3 hover:bg-muted/50 transition-colors">
-                <p className="text-sm font-medium font-heading">{entry.title}</p>
+              <Link key={entry.id} to={`/post/${entry.slug}`} className="block p-3 hover:bg-muted/50 transition-all duration-200 group">
+                <p className="text-sm font-medium font-heading group-hover:text-primary transition-colors">{entry.title}</p>
                 {(entry as any).categories?.name && (
                   <span className="tag-directory mt-1 inline-block">{(entry as any).categories.name}</span>
                 )}
-              </a>
+              </Link>
             ))
           )}
         </div>
       </div>
 
       {/* Business Card slider */}
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
         <div className="px-3 py-2.5 bg-primary text-primary-foreground border-b border-border">
           <h3 className="font-heading font-bold text-sm">🗂 বিজনেস কার্ড</h3>
         </div>
         {cards.length > 0 ? (
           <div className="p-3">
             <div className="relative">
-              <div className="w-full aspect-[16/9] rounded-xl bg-gradient-to-br from-primary via-primary/80 to-accent p-4 text-primary-foreground shadow-lg relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-20 h-20 bg-primary-foreground/10 rounded-full -translate-y-6 translate-x-6" />
+              <div className="w-full aspect-[16/9] rounded-xl bg-gradient-to-br from-primary via-primary/80 to-accent p-4 text-primary-foreground shadow-lg relative overflow-hidden transition-all duration-500">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-primary-foreground/10 rounded-full -translate-y-8 translate-x-8" />
+                <div className="absolute bottom-0 left-0 w-16 h-16 bg-primary-foreground/5 rounded-full translate-y-6 -translate-x-4" />
                 <div className="relative z-10 h-full flex flex-col justify-between">
                   <div>
                     <h4 className="font-heading font-bold text-sm">{cards[cardIdx]?.name}</h4>
                     {cards[cardIdx]?.title && <p className="text-[10px] opacity-80">{cards[cardIdx].title}</p>}
-                    {cards[cardIdx]?.organization && <p className="text-[10px] opacity-80">{cards[cardIdx].organization}</p>}
+                    {cards[cardIdx]?.organization && <p className="text-[10px] opacity-80 font-medium">{cards[cardIdx].organization}</p>}
                   </div>
                   <div className="text-[10px] opacity-80 space-y-0.5">
                     <p>📞 {cards[cardIdx]?.phone}</p>
                     {cards[cardIdx]?.email && <p>✉ {cards[cardIdx].email}</p>}
-                    {(cards[cardIdx] as any)?.address && <p>📍 {(cards[cardIdx] as any).address}</p>}
+                    {cards[cardIdx]?.address && <p>📍 {cards[cardIdx].address}</p>}
                   </div>
                 </div>
               </div>
               {cards.length > 1 && (
-                <div className="flex justify-center gap-1 mt-2">
+                <div className="flex justify-center gap-1.5 mt-2">
                   {cards.map((_, i) => (
-                    <button key={i} onClick={() => setCardIdx(i)} className={`w-1.5 h-1.5 rounded-full ${i === cardIdx ? "bg-primary" : "bg-muted-foreground/30"}`} />
+                    <button key={i} onClick={() => setCardIdx(i)} className={`h-1.5 rounded-full transition-all duration-300 ${i === cardIdx ? "bg-primary w-4" : "bg-muted-foreground/30 w-1.5"}`} />
                   ))}
                 </div>
               )}

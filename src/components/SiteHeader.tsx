@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, ChevronDown, Menu, X } from "lucide-react";
+import { Search, ChevronDown, Menu, X, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import SearchOverlay from "@/components/SearchOverlay";
 
 type MenuType = "news" | "blog" | "directory" | null;
@@ -133,6 +134,7 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
 }
 
 export default function SiteHeader() {
+  const { user } = useAuth();
   const [openMenu, setOpenMenu] = useState<MenuType>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -155,9 +157,21 @@ export default function SiteHeader() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
             খবর বা ডিরেক্টরি খুঁজুন...
           </button>
-          <button className="md:hidden p-2" onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button className="md:hidden p-2" onClick={() => setMobileOpen(!mobileOpen)}>
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <button className="md:hidden p-2" onClick={() => setSearchOpen(true)}>
+              <Search className="h-5 w-5" />
+            </button>
+            <a
+              href={user ? "/profile" : "/auth"}
+              className="p-2 rounded-full hover:bg-header-foreground/10 transition-colors"
+              title={user ? "প্রোফাইল" : "লগইন"}
+            >
+              <User className="h-5 w-5" />
+            </a>
+          </div>
         </div>
       </div>
 

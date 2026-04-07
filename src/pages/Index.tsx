@@ -1,16 +1,45 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import SiteHeader from "@/components/SiteHeader";
+import LeftSidebar from "@/components/LeftSidebar";
+import FeatureSlider from "@/components/FeatureSlider";
+import PinterestGrid from "@/components/PinterestGrid";
+import RightSidebar from "@/components/RightSidebar";
+import BusinessCardForm from "@/components/BusinessCardForm";
+import SiteFooter from "@/components/SiteFooter";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+export default function Index() {
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen flex flex-col">
+      <SiteHeader />
+
+      <main className="flex-1 container mx-auto px-4 py-6">
+        {/* 3-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr_20%] gap-5">
+          {/* Left */}
+          <aside className="order-2 lg:order-1">
+            <LeftSidebar />
+          </aside>
+
+          {/* Center */}
+          <div className="order-1 lg:order-2 space-y-6">
+            <FeatureSlider />
+
+            <div className="section-divider">
+              <span className="section-divider-text">গলাচিপার স্পন্দন</span>
+            </div>
+
+            <PinterestGrid />
+
+            <BusinessCardForm />
+          </div>
+
+          {/* Right */}
+          <aside className="order-3">
+            <RightSidebar />
+          </aside>
+        </div>
+      </main>
+
+      <SiteFooter />
     </div>
   );
-};
-
-const Index = PlaceholderIndex;
-
-export default Index;
+}

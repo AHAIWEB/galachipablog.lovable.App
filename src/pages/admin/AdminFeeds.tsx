@@ -182,7 +182,7 @@ export default function AdminFeeds() {
           </div>
         ) : (
           <p className="p-4 text-sm text-muted-foreground">এখনো কোনো আর্টিকেল ফেচ হয়নি</p>
-        )
+        )}
       </div>
     </div>
   );

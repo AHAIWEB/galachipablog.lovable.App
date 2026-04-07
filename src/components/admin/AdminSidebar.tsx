@@ -13,6 +13,7 @@ import {
   Home,
   ImageIcon,
   Zap,
+  Quote,
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { to: "/admin/activity", icon: Activity, label: "অ্যাক্টিভিটি লগ" },
   { to: "/admin/photocard", icon: ImageIcon, label: "ফটোকার্ড মেকার" },
   { to: "/admin/webp", icon: Zap, label: "WebP কনভার্টার" },
+  { to: "/admin/quotecard", icon: Quote, label: "কোট কার্ড এডিটর" },
 ];
 
 export default function AdminSidebar() {

@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Outlet } from "react-router-dom";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import { Menu, X } from "lucide-react";
 
 export default function AdminLayout() {
   const { user, isAdmin, loading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (loading) {
     return (
@@ -27,8 +30,29 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <AdminSidebar />
-      <main className="flex-1 p-6 overflow-auto">
+      {/* Mobile toggle */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-lg bg-card border border-border shadow-md"
+      >
+        {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </button>
+
+      {/* Sidebar */}
+      <div className={`
+        fixed inset-y-0 left-0 z-40 transform transition-transform duration-300
+        lg:relative lg:translate-x-0
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+      `}>
+        <AdminSidebar />
+      </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-foreground/30 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <main className="flex-1 p-4 lg:p-6 overflow-auto pt-14 lg:pt-6">
         <Outlet />
       </main>
     </div>

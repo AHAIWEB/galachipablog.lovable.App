@@ -1,0 +1,1 @@
+ALTER TABLE public.business_cards ADD COLUMN address text;

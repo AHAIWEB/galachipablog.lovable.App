@@ -46,6 +46,7 @@ export type Database = {
       }
       business_cards: {
         Row: {
+          address: string | null
           card_image_url: string | null
           created_at: string
           email: string | null
@@ -60,6 +61,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          address?: string | null
           card_image_url?: string | null
           created_at?: string
           email?: string | null
@@ -74,6 +76,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          address?: string | null
           card_image_url?: string | null
           created_at?: string
           email?: string | null

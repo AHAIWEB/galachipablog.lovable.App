@@ -1,6 +1,46 @@
-import { mockDirectoryEntries } from "@/data/categories";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function RightSidebar() {
+  const [cardIdx, setCardIdx] = useState(0);
+
+  const { data: dirPosts = [] } = useQuery({
+    queryKey: ["directory-sidebar"],
+    queryFn: async () => {
+      const { data: cats } = await supabase.from("categories").select("id").eq("type", "directory");
+      if (!cats || cats.length === 0) return [];
+      const { data } = await supabase
+        .from("posts")
+        .select("id, title, slug, categories(name)")
+        .eq("status", "published")
+        .in("category_id", cats.map(c => c.id))
+        .order("created_at", { ascending: false })
+        .limit(8);
+      return data ?? [];
+    },
+  });
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ["approved-cards"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("business_cards")
+        .select("*")
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data ?? [];
+    },
+  });
+
+  useEffect(() => {
+    if (cards.length <= 1) return;
+    const timer = setInterval(() => setCardIdx(p => (p + 1) % cards.length), 4000);
+    return () => clearInterval(timer);
+  }, [cards.length]);
+
   return (
     <div className="space-y-4">
       {/* Directory Index */}
@@ -9,28 +49,58 @@ export default function RightSidebar() {
           <h3 className="font-heading font-bold text-sm">📂 ইনডেক্স লিস্ট</h3>
         </div>
         <div className="divide-y divide-border">
-          {mockDirectoryEntries.map(entry => (
-            <a key={entry.id} href="#" className="block p-3 hover:bg-muted/50 transition-colors">
-              <p className="text-sm font-medium font-heading">{entry.name}</p>
-              <span className="tag-directory mt-1 inline-block">{entry.category}</span>
-            </a>
-          ))}
+          {dirPosts.length === 0 ? (
+            <p className="p-3 text-xs text-muted-foreground">ডিরেক্টরি পোস্ট নেই</p>
+          ) : (
+            dirPosts.map(entry => (
+              <a key={entry.id} href="#" className="block p-3 hover:bg-muted/50 transition-colors">
+                <p className="text-sm font-medium font-heading">{entry.title}</p>
+                {(entry as any).categories?.name && (
+                  <span className="tag-directory mt-1 inline-block">{(entry as any).categories.name}</span>
+                )}
+              </a>
+            ))
+          )}
         </div>
       </div>
 
-      {/* Business Card slider placeholder */}
+      {/* Business Card slider */}
       <div className="bg-card rounded-lg border border-border overflow-hidden">
         <div className="px-3 py-2.5 bg-primary text-primary-foreground border-b border-border">
           <h3 className="font-heading font-bold text-sm">🗂 বিজনেস কার্ড</h3>
         </div>
-        <div className="p-4 text-center">
-          <div className="w-full aspect-[16/9] bg-muted rounded-lg flex items-center justify-center mb-3">
-            <p className="text-xs text-muted-foreground font-heading">কার্ড স্লাইডার</p>
+        {cards.length > 0 ? (
+          <div className="p-3">
+            <div className="relative">
+              <div className="w-full aspect-[16/9] rounded-xl bg-gradient-to-br from-primary via-primary/80 to-accent p-4 text-primary-foreground shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-primary-foreground/10 rounded-full -translate-y-6 translate-x-6" />
+                <div className="relative z-10 h-full flex flex-col justify-between">
+                  <div>
+                    <h4 className="font-heading font-bold text-sm">{cards[cardIdx]?.name}</h4>
+                    {cards[cardIdx]?.title && <p className="text-[10px] opacity-80">{cards[cardIdx].title}</p>}
+                    {cards[cardIdx]?.organization && <p className="text-[10px] opacity-80">{cards[cardIdx].organization}</p>}
+                  </div>
+                  <div className="text-[10px] opacity-80 space-y-0.5">
+                    <p>📞 {cards[cardIdx]?.phone}</p>
+                    {cards[cardIdx]?.email && <p>✉ {cards[cardIdx].email}</p>}
+                    {(cards[cardIdx] as any)?.address && <p>📍 {(cards[cardIdx] as any).address}</p>}
+                  </div>
+                </div>
+              </div>
+              {cards.length > 1 && (
+                <div className="flex justify-center gap-1 mt-2">
+                  {cards.map((_, i) => (
+                    <button key={i} onClick={() => setCardIdx(i)} className={`w-1.5 h-1.5 rounded-full ${i === cardIdx ? "bg-primary" : "bg-muted-foreground/30"}`} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            ডিরেক্টরিতে সাবমিট করা কার্ডগুলো এখানে দেখা যাবে
-          </p>
-        </div>
+        ) : (
+          <div className="p-4 text-center">
+            <p className="text-xs text-muted-foreground">অনুমোদিত কার্ড নেই</p>
+          </div>
+        )}
       </div>
     </div>
   );

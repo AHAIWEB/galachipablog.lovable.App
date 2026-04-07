@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, RefreshCw, Play, Pause } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Play, Pause, Sparkles } from "lucide-react";
 
 export default function AdminFeeds() {
   const queryClient = useQueryClient();
@@ -155,9 +155,28 @@ export default function AdminFeeds() {
         {articles && articles.length > 0 ? (
           <div className="divide-y divide-border">
             {articles.map(a => (
-              <div key={a.id} className="px-4 py-3 text-sm">
-                <p className="font-medium">{a.title}</p>
-                <p className="text-xs text-muted-foreground">{(a as any).feed_sources?.name} • {a.status}</p>
+              <div key={a.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                <div>
+                  <p className="font-medium">{a.title}</p>
+                  <p className="text-xs text-muted-foreground">{(a as any).feed_sources?.name} • {a.status}</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    toast.info("AI প্রসেসিং শুরু হচ্ছে...");
+                    const { data, error } = await supabase.functions.invoke("ai-process", {
+                      body: { title: a.title, content: a.content || a.excerpt || "" },
+                    });
+                    if (error) {
+                      toast.error("AI প্রসেসিং ব্যর্থ");
+                    } else {
+                      toast.success(`সারসংক্ষেপ: ${data?.data?.summary?.slice(0, 80)}...`);
+                    }
+                  }}
+                  className="p-1.5 hover:bg-primary/10 rounded text-primary shrink-0"
+                  title="AI সারসংক্ষেপ ও ট্যাগ"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </button>
               </div>
             ))}
           </div>

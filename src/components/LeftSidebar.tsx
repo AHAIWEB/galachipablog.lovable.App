@@ -26,7 +26,7 @@ export default function LeftSidebar() {
         const { data: catIds } = await supabase
           .from("categories")
           .select("id")
-          .eq("type", activeTab);
+          .eq("type", activeTab as "news" | "blog" | "directory");
         if (catIds && catIds.length > 0) {
           query = query.in("category_id", catIds.map(c => c.id));
         }

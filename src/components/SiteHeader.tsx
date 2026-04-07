@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Search, ChevronDown, Menu, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import SearchOverlay from "@/components/SearchOverlay";
 
 type MenuType = "news" | "blog" | "directory" | null;
 
@@ -133,7 +134,7 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
 export default function SiteHeader() {
   const [openMenu, setOpenMenu] = useState<MenuType>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [headerSearch, setHeaderSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const toggleMenu = (type: MenuType) => {
     setOpenMenu(prev => (prev === type ? null : type));
@@ -146,16 +147,13 @@ export default function SiteHeader() {
           <a href="/" className="font-heading font-bold text-xl tracking-tight shrink-0">
             গলাচিপা ব্লগ
           </a>
-          <div className="hidden md:block relative flex-1 max-w-lg mx-6">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-header-foreground/50" />
-            <input
-              type="text"
-              value={headerSearch}
-              onChange={e => setHeaderSearch(e.target.value)}
-              placeholder="খবর বা ডিরেক্টরি খুঁজুন..."
-              className="w-full pl-10 pr-4 py-2 rounded-full bg-header-foreground/10 border border-header-foreground/20 text-sm text-header-foreground placeholder:text-header-foreground/40 focus:outline-none focus:bg-header-foreground/15"
-            />
-          </div>
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="hidden md:flex items-center gap-2 flex-1 max-w-lg mx-6 pl-10 pr-4 py-2 rounded-full bg-header-foreground/10 border border-header-foreground/20 text-sm text-header-foreground/40 hover:bg-header-foreground/15 transition-colors relative"
+          >
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+            খবর বা ডিরেক্টরি খুঁজুন...
+          </button>
           <button className="md:hidden p-2" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -187,6 +185,8 @@ export default function SiteHeader() {
       {openMenu && (
         <div className="fixed inset-0 bg-foreground/20 z-40" onClick={() => setOpenMenu(null)} style={{ top: "110px" }} />
       )}
+
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }

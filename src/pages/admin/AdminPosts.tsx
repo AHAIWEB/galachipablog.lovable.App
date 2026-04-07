@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Send } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Post = Tables<"posts">;
@@ -175,7 +175,23 @@ export default function AdminPosts() {
                       {post.status === "published" ? "প্রকাশিত" : post.status === "draft" ? "ড্রাফট" : "আর্কাইভ"}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2 text-right whitespace-nowrap">
+                    <button
+                      onClick={async () => {
+                        toast.info("Blogger-এ পাবলিশ হচ্ছে...");
+                        const { data, error } = await supabase.functions.invoke("publish-blogger", {
+                          body: { title: post.title, content: post.content || post.excerpt || "" },
+                        });
+                        if (error || data?.error) {
+                          toast.error(data?.error || "Blogger পাবলিশ ব্যর্থ");
+                        } else {
+                          toast.success("Blogger-এ পাবলিশ হয়েছে!");
+                        }
+                      }}
+                      className="p-1.5 hover:bg-muted rounded" title="Blogger-এ পাবলিশ"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                    </button>
                     <button onClick={() => startEdit(post)} className="p-1.5 hover:bg-muted rounded"><Pencil className="h-3.5 w-3.5" /></button>
                     <button
                       onClick={() => {

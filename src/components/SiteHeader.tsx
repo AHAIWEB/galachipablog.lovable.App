@@ -18,7 +18,7 @@ const menuConfig = {
 
 const letterList = ["অ","আ","ই","উ","এ","ও","ক","খ","গ","ঘ","চ","জ","ট","ড","ঢ","ত","দ","ন","প","ফ","ব","ভ","ম","য","র","ল","শ","স","হ"];
 
-function useDynamicCategories(type: string) {
+function useDynamicCategories(type: "news" | "blog" | "directory") {
   return useQuery({
     queryKey: ["menu-categories", type],
     queryFn: async () => {

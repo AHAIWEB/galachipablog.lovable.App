@@ -15,6 +15,8 @@ import AdminFeeds from "./pages/admin/AdminFeeds";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminActivity from "./pages/admin/AdminActivity";
+import AdminPhotocard from "./pages/admin/AdminPhotocard";
+import AdminWebP from "./pages/admin/AdminWebP";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +40,8 @@ const App = () => (
               <Route path="settings" element={<AdminSettings />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="activity" element={<AdminActivity />} />
+              <Route path="photocard" element={<AdminPhotocard />} />
+              <Route path="webp" element={<AdminWebP />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

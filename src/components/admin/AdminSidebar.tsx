@@ -11,6 +11,8 @@ import {
   Activity,
   LogOut,
   Home,
+  ImageIcon,
+  Zap,
 } from "lucide-react";
 
 const navItems = [
@@ -22,6 +24,8 @@ const navItems = [
   { to: "/admin/users", icon: Users, label: "ইউজার" },
   { to: "/admin/settings", icon: Palette, label: "সেটিংস" },
   { to: "/admin/activity", icon: Activity, label: "অ্যাক্টিভিটি লগ" },
+  { to: "/admin/photocard", icon: ImageIcon, label: "ফটোকার্ড মেকার" },
+  { to: "/admin/webp", icon: Zap, label: "WebP কনভার্টার" },
 ];
 
 export default function AdminSidebar() {

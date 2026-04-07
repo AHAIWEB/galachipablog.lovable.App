@@ -59,7 +59,7 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
   
   const filtered = search
     ? categories
-        .map(c => ({ ...c, items: c.items.filter(i => i.includes(search)) }))
+        .map(c => ({ ...c, items: c.items.filter(i => i.name.includes(search)) }))
         .filter(c => c.items.length > 0)
     : categories;
 
@@ -112,9 +112,9 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
                 <span className={`mega-menu-letter ${config.colorClass}`}>{cat.letter}</span>
                 <ul className="mt-1 space-y-0.5">
                   {cat.items.map(item => (
-                    <li key={item}>
-                      <a href="#" className="text-sm text-foreground/80 hover:text-primary hover:underline block py-0.5 transition-colors">
-                        {item}
+                    <li key={item.slug}>
+                      <a href={`/category/${item.slug}`} className="text-sm text-foreground/80 hover:text-primary hover:underline block py-0.5 transition-colors">
+                        {item.name}
                       </a>
                     </li>
                   ))}

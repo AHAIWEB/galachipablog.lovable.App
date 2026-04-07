@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import PostDetail from "./pages/PostDetail";
+import CategoryPage from "./pages/CategoryPage";
 import AuthPage from "./pages/AuthPage";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -18,6 +19,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminActivity from "./pages/admin/AdminActivity";
 import AdminPhotocard from "./pages/admin/AdminPhotocard";
 import AdminWebP from "./pages/admin/AdminWebP";
+import AdminQuoteCard from "./pages/admin/AdminQuoteCard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +34,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/post/:slug" element={<PostDetail />} />
+            <Route path="/category/:slug" element={<CategoryPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
@@ -44,6 +47,7 @@ const App = () => (
               <Route path="activity" element={<AdminActivity />} />
               <Route path="photocard" element={<AdminPhotocard />} />
               <Route path="webp" element={<AdminWebP />} />
+              <Route path="quotecard" element={<AdminQuoteCard />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

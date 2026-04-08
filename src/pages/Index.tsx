@@ -8,6 +8,7 @@ import PinterestGrid from "@/components/PinterestGrid";
 import RightSidebar from "@/components/RightSidebar";
 import BusinessCardForm from "@/components/BusinessCardForm";
 import SiteFooter from "@/components/SiteFooter";
+import AdSlot from "@/components/AdSlot";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Index() {
@@ -26,34 +27,7 @@ export default function Index() {
     },
   });
 
-  // Ad slot component
-  const AdSlot = ({ placement }: { placement: string }) => {
-    const { data: ads = [] } = useQuery({
-      queryKey: ["ads", placement],
-      queryFn: async () => {
-        const { data } = await supabase
-          .from("ads")
-          .select("*")
-          .eq("status", "active")
-          .eq("placement", placement)
-          .limit(1);
-        return data ?? [];
-      },
-      staleTime: 60000,
-    });
-
-    if (ads.length === 0) return null;
-    const ad = ads[0] as any;
-    return (
-      <a href={ad.link_url || "#"} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-border/50 hover:shadow-md transition-shadow my-3">
-        {ad.image_url ? (
-          <img src={ad.image_url} alt={ad.name} className="w-full" />
-        ) : (
-          <div className="p-3 bg-muted/30 text-sm text-center" dangerouslySetInnerHTML={{ __html: ad.content }} />
-        )}
-      </a>
-    );
-  };
+  // AdSlot imported from shared component
 
   return (
     <div className="min-h-screen flex flex-col">

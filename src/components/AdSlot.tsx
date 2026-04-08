@@ -9,11 +9,11 @@ type AdSlotProps = {
 };
 
 async function trackView(adId: string) {
-  await supabase.rpc("increment_ad_view", { ad_id: adId }).catch(() => {});
+  try { await (supabase.rpc as any)("increment_ad_view", { ad_id: adId }); } catch {}
 }
 
 async function trackClick(adId: string) {
-  await supabase.rpc("increment_ad_click", { ad_id: adId }).catch(() => {});
+  try { await (supabase.rpc as any)("increment_ad_click", { ad_id: adId }); } catch {}
 }
 
 function AdItem({ ad }: { ad: any }) {

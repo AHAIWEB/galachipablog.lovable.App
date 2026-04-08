@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, Palette, Type, Layout, Globe, Image, Mail, FileText, Sparkles, Loader2 } from "lucide-react";
+import { Save, Palette, Type, Layout, Globe, Image, Mail, FileText, Sparkles, Loader2, Upload } from "lucide-react";
 
 const aiFields: Record<string, string> = {
   site_description: "গলাচিপা ব্লগ সাইটের জন্য একটি সংক্ষিপ্ত SEO-বান্ধব সাইট বিবরণ (meta description) বাংলায় লিখুন। ১৫০ অক্ষরের মধ্যে। গলাচিপা পটুয়াখালী জেলার একটি উপজেলা।",
@@ -57,7 +57,9 @@ const settingSections = [
     title: "🖼️ লোগো ও মিডিয়া",
     icon: Image,
     fields: [
-      { key: "logo_url", label: "লোগো URL", type: "text", placeholder: "https://..." },
+      { key: "logo_url", label: "সাইট লোগো", type: "logo_upload", placeholder: "লোগো আপলোড করুন..." },
+      { key: "logo_width", label: "লোগো প্রস্থ (px)", type: "number", placeholder: "120" },
+      { key: "logo_height", label: "লোগো উচ্চতা (px)", type: "number", placeholder: "40" },
       { key: "favicon_url", label: "ফেভিকন URL", type: "text", placeholder: "https://..." },
       { key: "og_image_url", label: "সোশ্যাল শেয়ার ইমেজ", type: "text", placeholder: "https://..." },
       { key: "default_post_image", label: "ডিফল্ট পোস্ট ইমেজ", type: "text", placeholder: "https://..." },
@@ -86,6 +88,47 @@ const settingSections = [
     ],
   },
 ];
+
+function LogoUploadField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `logos/site-logo-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("site-assets").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from("site-assets").getPublicUrl(path);
+      onChange(urlData.publicUrl);
+      toast.success("লোগো আপলোড হয়েছে ✨");
+    } catch (err: any) {
+      toast.error("আপলোড ব্যর্থ: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted hover:bg-muted/80 cursor-pointer text-xs font-medium transition-colors">
+          {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+          {uploading ? "আপলোড হচ্ছে..." : "লোগো আপলোড"}
+          <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])} disabled={uploading} />
+        </label>
+        <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder="বা URL পেস্ট করুন..." className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+      </div>
+      {value && (
+        <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 border border-border">
+          <img src={value} alt="Logo preview" className="h-12 w-auto max-w-[160px] object-contain rounded" />
+          <span className="text-xs text-muted-foreground truncate flex-1">{value.split("/").pop()}</span>
+          <button onClick={() => onChange("")} className="text-xs text-destructive hover:underline">মুছুন</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminSettings() {
   const queryClient = useQueryClient();
@@ -198,7 +241,9 @@ export default function AdminSettings() {
                     </button>
                   )}
                 </div>
-                {f.type === "textarea" ? (
+                {f.type === "logo_upload" ? (
+                  <LogoUploadField value={values[f.key] ?? ""} onChange={url => setForm(p => ({ ...p, [f.key]: url }))} />
+                ) : f.type === "textarea" ? (
                   <textarea
                     value={values[f.key] ?? ""}
                     onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}

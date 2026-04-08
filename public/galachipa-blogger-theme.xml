@@ -4,48 +4,65 @@
   <head>
     <meta content='width=device-width, initial-scale=1' name='viewport'/>
     <title><data:blog.pageTitle/></title>
+    <meta expr:content='data:blog.metaDescription' name='description'/>
+    <link expr:href='data:blog.canonicalUrl' rel='canonical'/>
     <b:include data='blog' name='all-head-content'/>
+
     <b:skin><![CDATA[
-      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap');
 
       :root {
         --background: hsl(210 20% 98%);
         --foreground: hsl(220 20% 10%);
         --surface: hsl(0 0% 100%);
+        --card: hsl(0 0% 100%);
         --border: hsl(214 20% 88%);
         --header-bg: hsl(220 25% 12%);
         --header-foreground: hsl(0 0% 95%);
+        --primary: hsl(215 80% 35%);
+        --primary-light: hsl(215 75% 92%);
+        --primary-text: hsl(215 80% 30%);
         --news: hsl(215 80% 35%);
+        --news-bg: hsl(215 75% 92%);
+        --news-text: hsl(215 80% 30%);
         --blog: hsl(152 55% 38%);
+        --blog-bg: hsl(152 50% 90%);
+        --blog-text: hsl(152 55% 25%);
         --directory: hsl(270 40% 50%);
+        --directory-bg: hsl(270 40% 92%);
+        --directory-text: hsl(270 40% 30%);
         --muted: hsl(210 15% 93%);
         --muted-foreground: hsl(220 10% 45%);
-        --shadow: 0 18px 40px rgba(21, 37, 65, 0.08);
+        --divider-accent: hsl(30 80% 55%);
+        --destructive: hsl(0 84% 60%);
+        --shadow-sm: 0 1px 3px rgba(21,37,65,0.04);
+        --shadow: 0 18px 40px rgba(21,37,65,0.08);
+        --shadow-lg: 0 20px 34px rgba(22,37,66,0.08);
         --radius: 18px;
+        --radius-sm: 12px;
       }
 
-      * { box-sizing: border-box; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
       body {
-        margin: 0;
         background:
-          radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 28%),
-          radial-gradient(circle at bottom left, rgba(124, 58, 237, 0.07), transparent 24%),
+          radial-gradient(circle at top right, rgba(37,99,235,0.08), transparent 28%),
+          radial-gradient(circle at bottom left, rgba(124,58,237,0.07), transparent 24%),
           var(--background);
         color: var(--foreground);
         font-family: 'Hind Siliguri', sans-serif;
         line-height: 1.7;
+        -webkit-font-smoothing: antialiased;
       }
 
-      a { color: var(--news); text-decoration: none; }
-      a:hover { text-decoration: underline; }
-      img { max-width: 100%; border-radius: 16px; }
+      a { color: var(--primary); text-decoration: none; transition: color .2s; }
+      a:hover { color: var(--news); }
+      img { max-width: 100%; border-radius: 16px; display: block; }
 
-      .page-shell { min-height: 100vh; }
-      .container {
-        width: min(1180px, calc(100% - 32px));
-        margin: 0 auto;
-      }
+      .page-shell { min-height: 100vh; display: flex; flex-direction: column; }
+      .container { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
 
+      /* ============ HEADER ============ */
       .topbar {
         background: var(--header-bg);
         color: var(--header-foreground);
@@ -68,6 +85,7 @@
         font-size: clamp(1.8rem, 4vw, 2.6rem);
         font-weight: 800;
         letter-spacing: -0.02em;
+        color: var(--header-foreground);
       }
 
       .brand-block .description {
@@ -84,15 +102,20 @@
         padding: 12px 18px;
         color: rgba(255,255,255,0.82);
         text-align: right;
+        font-size: 0.92rem;
+        transition: background .2s;
       }
+      .quick-search:focus { background: rgba(255,255,255,0.14); outline: none; }
 
+      /* ============ NAV ============ */
       .nav-wrap {
         background: rgba(255,255,255,0.96);
         backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
         border-bottom: 1px solid var(--border);
         position: sticky;
         top: 0;
-        z-index: 10;
+        z-index: 50;
       }
 
       .nav-chip-list {
@@ -110,16 +133,19 @@
         border-radius: 999px;
         font-family: 'Noto Sans Bengali', sans-serif;
         font-weight: 700;
+        font-size: 0.92rem;
         color: var(--foreground);
         background: var(--surface);
         border: 1px solid var(--border);
-        box-shadow: var(--shadow);
+        box-shadow: var(--shadow-sm);
+        transition: transform .2s, box-shadow .2s;
       }
-
+      .nav-chip:hover { transform: translateY(-1px); box-shadow: var(--shadow); color: var(--foreground); text-decoration: none; }
       .chip-news { border-color: color-mix(in srgb, var(--news) 35%, white); }
       .chip-blog { border-color: color-mix(in srgb, var(--blog) 35%, white); }
       .chip-directory { border-color: color-mix(in srgb, var(--directory) 35%, white); }
 
+      /* ============ HERO ============ */
       .hero {
         display: grid;
         grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
@@ -140,7 +166,7 @@
       .hero-card {
         padding: 28px;
         background:
-          linear-gradient(135deg, rgba(26, 82, 153, 0.06), rgba(18, 125, 81, 0.05)),
+          linear-gradient(135deg, rgba(26,82,153,0.06), rgba(18,125,81,0.05)),
           rgba(255,255,255,0.94);
       }
 
@@ -148,9 +174,9 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 8px 12px;
+        padding: 8px 14px;
         border-radius: 999px;
-        background: rgba(37, 99, 235, 0.08);
+        background: var(--news-bg);
         color: var(--news);
         font-weight: 700;
         font-size: 0.92rem;
@@ -163,34 +189,47 @@
         line-height: 1.15;
       }
 
-      .hero-card p {
-        margin: 0;
-        color: var(--muted-foreground);
-        font-size: 1rem;
-      }
+      .hero-card p { margin: 0; color: var(--muted-foreground); font-size: 1rem; }
 
-      .hero-side {
-        display: grid;
-        gap: 16px;
-      }
+      .hero-side { display: grid; gap: 16px; }
 
       .hero-mini {
         padding: 20px;
         position: relative;
         overflow: hidden;
       }
-
       .hero-mini::before {
         content: '';
         position: absolute;
         inset: auto -32px -32px auto;
-        width: 120px;
-        height: 120px;
+        width: 120px; height: 120px;
         border-radius: 999px;
-        background: rgba(124, 58, 237, 0.08);
+        background: rgba(124,58,237,0.08);
       }
+      .hero-mini.blog-accent::before { background: rgba(22,163,74,0.08); }
 
-      .hero-mini.blog-accent::before { background: rgba(22, 163, 74, 0.08); }
+      /* ============ SECTION DIVIDER ============ */
+      .section-divider {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin: 32px 0;
+      }
+      .section-divider::before,
+      .section-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--divider-accent), transparent);
+        opacity: 0.4;
+      }
+      .section-divider-text {
+        color: var(--divider-accent);
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-weight: 800;
+        font-size: 1.15rem;
+        white-space: nowrap;
+      }
 
       .section-title {
         margin: 0 0 18px;
@@ -199,6 +238,7 @@
         font-weight: 800;
       }
 
+      /* ============ CONTENT GRID ============ */
       .content-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 320px;
@@ -209,6 +249,7 @@
       .content-card { padding: 24px; }
       .sidebar-card { padding: 20px; }
 
+      /* ============ POSTS ============ */
       .post,
       .post-outer {
         background: var(--surface);
@@ -218,11 +259,10 @@
         margin-bottom: 18px;
         transition: transform .2s ease, box-shadow .2s ease;
       }
-
       .post:hover,
       .post-outer:hover {
         transform: translateY(-2px);
-        box-shadow: 0 20px 34px rgba(22, 37, 66, 0.08);
+        box-shadow: var(--shadow-lg);
       }
 
       h2.post-title,
@@ -232,40 +272,263 @@
         line-height: 1.25;
         margin: 0 0 12px;
       }
+      .post-title a { color: var(--foreground); }
+      .post-title a:hover { color: var(--primary); }
 
-      .post-meta,
-      .byline {
+      .post-meta, .byline {
         color: var(--muted-foreground);
         font-size: 0.92rem;
         margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
       }
 
-      .post-body,
-      .post-snippet,
-      .entry-content {
+      .post-meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .post-body, .post-snippet, .entry-content {
         color: var(--foreground);
         font-size: 1rem;
+        line-height: 1.8;
       }
 
+      .post-body img, .entry-content img {
+        border-radius: 16px;
+        margin: 16px 0;
+      }
+
+      /* ============ CATEGORY TAGS ============ */
+      .tag-news {
+        display: inline-block;
+        background: var(--news-bg);
+        color: var(--news-text);
+        font-size: 0.78rem;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+      .tag-blog {
+        display: inline-block;
+        background: var(--blog-bg);
+        color: var(--blog-text);
+        font-size: 0.78rem;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+      .tag-directory {
+        display: inline-block;
+        background: var(--directory-bg);
+        color: var(--directory-text);
+        font-size: 0.78rem;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+
+      /* ============ SHARE BUTTONS ============ */
+      .share-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+      }
+      .share-bar-label {
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: var(--muted-foreground);
+        margin-right: 4px;
+      }
+      .share-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--muted-foreground);
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all .2s;
+        text-decoration: none;
+      }
+      .share-btn:hover { text-decoration: none; }
+      .share-btn-fb:hover { background: hsl(215 75% 92%); color: hsl(215 80% 45%); border-color: hsl(215 60% 80%); }
+      .share-btn-tw:hover { background: hsl(200 80% 92%); color: hsl(200 80% 40%); border-color: hsl(200 60% 80%); }
+      .share-btn-copy:hover { background: var(--muted); color: var(--foreground); }
+      .share-btn-bookmark {
+        margin-left: auto;
+        width: auto;
+        padding: 0 12px;
+        gap: 6px;
+        font-weight: 600;
+        font-size: 0.82rem;
+      }
+      .share-btn-bookmark:hover { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+      .share-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.82rem;
+        color: var(--muted-foreground);
+      }
+
+      /* ============ COMMENTS ============ */
+      .comments-section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 22px;
+        margin-top: 18px;
+      }
+      .comments-section h4 {
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-weight: 800;
+        font-size: 1.1rem;
+        margin-bottom: 16px;
+      }
+      .comment-item {
+        padding: 14px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .comment-item:last-child { border-bottom: 0; }
+      .comment-author {
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: var(--foreground);
+      }
+      .comment-date {
+        font-size: 0.8rem;
+        color: var(--muted-foreground);
+        margin-left: 8px;
+      }
+      .comment-body {
+        font-size: 0.95rem;
+        margin-top: 6px;
+        color: var(--foreground);
+        line-height: 1.7;
+      }
+      .comment-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+      }
+      .comment-action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.8rem;
+        color: var(--muted-foreground);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 8px;
+        transition: all .2s;
+      }
+      .comment-action-btn:hover { background: var(--muted); color: var(--primary); }
+      .comment-reply { margin-left: 24px; border-left: 2px solid var(--border); padding-left: 16px; }
+      .comment-form textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        font-family: 'Hind Siliguri', sans-serif;
+        font-size: 0.95rem;
+        resize: vertical;
+        min-height: 80px;
+        transition: border-color .2s;
+      }
+      .comment-form textarea:focus { border-color: var(--primary); outline: none; }
+      .comment-submit-btn {
+        margin-top: 8px;
+        padding: 10px 20px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 999px;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: opacity .2s;
+      }
+      .comment-submit-btn:hover { opacity: 0.9; }
+
+      /* ============ MASONRY GRID ============ */
+      .masonry-section { padding: 16px 0 36px; }
+      .masonry-grid {
+        columns: 4;
+        column-gap: 16px;
+      }
+      .masonry-item {
+        break-inside: avoid;
+        margin-bottom: 16px;
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-sm);
+        transition: transform .3s, box-shadow .3s;
+      }
+      .masonry-item:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow);
+      }
+      .masonry-item img {
+        width: 100%;
+        border-radius: 0;
+        display: block;
+      }
+      .masonry-item-content {
+        padding: 14px;
+      }
+      .masonry-item-title {
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-weight: 700;
+        font-size: 0.95rem;
+        line-height: 1.35;
+        margin-bottom: 6px;
+      }
+      .masonry-item-title a { color: var(--foreground); }
+      .masonry-item-title a:hover { color: var(--primary); }
+      .masonry-item-excerpt {
+        font-size: 0.84rem;
+        color: var(--muted-foreground);
+        line-height: 1.5;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      /* ============ WIDGETS ============ */
       .widget {
         margin-bottom: 20px;
         padding-bottom: 20px;
         border-bottom: 1px solid var(--border);
       }
-
       .widget:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
 
-      .widget h3,
-      .widget h2 {
+      .widget h3, .widget h2 {
         margin: 0 0 14px;
         font-family: 'Noto Sans Bengali', sans-serif;
         font-size: 1.05rem;
         font-weight: 800;
       }
 
-      .Label a,
-      .PopularPosts .item-title a,
-      .LinkList a {
+      .Label a, .PopularPosts .item-title a, .LinkList a {
         display: inline-flex;
         margin: 0 8px 8px 0;
         padding: 8px 12px;
@@ -273,43 +536,79 @@
         border-radius: 999px;
         color: var(--foreground);
         font-size: 0.92rem;
+        transition: all .2s;
+      }
+      .Label a:hover, .PopularPosts .item-title a:hover, .LinkList a:hover {
+        background: var(--primary-light);
+        color: var(--primary);
+        text-decoration: none;
       }
 
-      .footer-shell {
-        margin: 0 0 32px;
-      }
-
+      /* ============ FOOTER ============ */
+      .footer-shell { margin: 0 0 32px; }
       .footer-card {
         padding: 24px;
         background: var(--header-bg);
         color: var(--header-foreground);
+        border-radius: calc(var(--radius) + 4px);
       }
-
       .footer-card a { color: rgba(255,255,255,0.92); }
-      .copyright { color: rgba(255,255,255,0.68); font-size: 0.92rem; }
+      .copyright { color: rgba(255,255,255,0.68); font-size: 0.92rem; margin-top: 12px; }
 
-      @media (max-width: 980px) {
-        .hero,
-        .content-grid { grid-template-columns: 1fr; }
-        .quick-search { display: none; }
+      /* ============ ANIMATIONS ============ */
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in { animation: fadeInUp .4s ease-out both; }
+
+      /* ============ BACK TO TOP ============ */
+      .back-to-top {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 99;
+        transition: opacity .3s;
       }
 
+      /* ============ RESPONSIVE ============ */
+      @media (max-width: 1024px) {
+        .masonry-grid { columns: 3; }
+      }
+      @media (max-width: 980px) {
+        .hero, .content-grid { grid-template-columns: 1fr; }
+        .quick-search { display: none; }
+        .masonry-grid { columns: 2; }
+      }
       @media (max-width: 640px) {
         .container { width: min(100% - 20px, 1180px); }
         .topbar-inner { padding: 16px 0; }
-        .hero-card,
-        .content-card,
-        .sidebar-card,
-        .footer-card,
-        .post,
-        .post-outer { padding: 18px; }
-        .nav-chip-list { gap: 8px; }
-        .nav-chip { width: 100%; justify-content: center; }
+        .hero-card, .content-card, .sidebar-card, .footer-card, .post, .post-outer { padding: 18px; }
+        .nav-chip-list { gap: 8px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+        .nav-chip { white-space: nowrap; flex-shrink: 0; }
+        .masonry-grid { columns: 1; }
+        .share-bar { flex-wrap: wrap; }
+        .share-btn-bookmark { margin-left: 0; width: 100%; justify-content: center; margin-top: 4px; }
+        .comment-reply { margin-left: 12px; padding-left: 10px; }
       }
     ]]></b:skin>
   </head>
   <body>
     <div class='page-shell'>
+
+      <!-- HEADER -->
       <header class='topbar'>
         <div class='container topbar-inner'>
           <div class='brand-block'>
@@ -321,7 +620,8 @@
         </div>
       </header>
 
-      <div class='nav-wrap'>
+      <!-- NAV -->
+      <nav class='nav-wrap'>
         <div class='container'>
           <div class='nav-chip-list'>
             <a class='nav-chip chip-news' expr:href='data:blog.homepageUrl + &quot;search/label/%E0%A6%9C%E0%A6%A8%E0%A6%AA%E0%A6%A6&quot;'>📰 জনপদ ও খবর</a>
@@ -329,54 +629,295 @@
             <a class='nav-chip chip-directory' expr:href='data:blog.homepageUrl + &quot;search/label/%E0%A6%A1%E0%A6%BF%E0%A6%B0%E0%A7%87%E0%A6%95%E0%A7%8D%E0%A6%9F%E0%A6%B0%E0%A6%BF&quot;'>📂 ইনডেক্স ও ডিরেক্টরি</a>
           </div>
         </div>
-      </div>
+      </nav>
 
       <main class='container'>
+
+        <!-- HERO -->
         <section class='hero'>
-          <div class='hero-card'>
-            <div class='hero-kicker'>গলাচিপার স্পন্দন</div>
-            <h3>স্থানীয় সংবাদ, গভীর ব্লগ ও ডিরেক্টরি—একই ভিজ্যুয়াল ভাষায়</h3>
+          <div class='hero-card animate-fade-in'>
+            <div class='hero-kicker'>🔔 গলাচিপার স্পন্দন</div>
+            <h3>স্থানীয় সংবাদ, গভীর ব্লগ ও ডিরেক্টরি—একই ভিজ্যুয়াল ভাষায়</h3>
             <p>এই Blogger টেমপ্লেটটি গলাচিপা ব্লগের ডার্ক হেডার, রঙভিত্তিক কনটেন্ট টাইপ, কার্ডভিত্তিক লেআউট এবং বাংলা-ফার্স্ট টাইপোগ্রাফি অনুসরণ করে তৈরি।</p>
           </div>
           <div class='hero-side'>
-            <div class='hero-mini content-card'>
+            <div class='hero-mini content-card animate-fade-in'>
               <h3 class='section-title'>নীল সংবাদ ব্লক</h3>
               <p>News কনটেন্টের জন্য শক্তিশালী নীল টোন ও পরিষ্কার রিডেবিলিটি।</p>
             </div>
-            <div class='hero-mini content-card blog-accent'>
+            <div class='hero-mini content-card blog-accent animate-fade-in'>
               <h3 class='section-title'>সবুজ ব্লগ স্তর</h3>
               <p>Opinion, feature ও long-form পোস্টের জন্য উষ্ণ, শান্ত, পাঠবান্ধব উপস্থাপন।</p>
             </div>
           </div>
         </section>
 
+        <!-- MAIN CONTENT -->
         <section class='content-grid'>
           <div class='content-card'>
             <h2 class='section-title'>সাম্প্রতিক লেখা</h2>
             <b:section class='main-section' id='main-section' maxwidgets='1' showaddelement='no'>
-              <b:widget id='Blog1' locked='true' title='Blog Posts' type='Blog' visible='true'/>
+              <b:widget id='Blog1' locked='true' title='Blog Posts' type='Blog' visible='true'>
+                <b:includable id='main' var='top'>
+                  <b:loop values='data:posts' var='post'>
+                    <article class='post animate-fade-in'>
+                      <!-- Category Tag -->
+                      <b:if cond='data:post.labels'>
+                        <div style='margin-bottom: 10px;'>
+                          <b:loop values='data:post.labels' var='label'>
+                            <b:if cond='data:label.name == &quot;জনপদ&quot;'>
+                              <span class='tag-news'><data:label.name/></span>
+                            <b:elseif cond='data:label.name == &quot;ব্লগ&quot;'/>
+                              <span class='tag-blog'><data:label.name/></span>
+                            <b:else/>
+                              <span class='tag-directory'><data:label.name/></span>
+                            </b:if>
+                          </b:loop>
+                        </div>
+                      </b:if>
+
+                      <!-- Title -->
+                      <h2 class='post-title'>
+                        <a expr:href='data:post.url'><data:post.title/></a>
+                      </h2>
+
+                      <!-- Meta -->
+                      <div class='post-meta'>
+                        <span class='post-meta-item'>📅 <data:post.date/></span>
+                        <b:if cond='data:post.author'>
+                          <span class='post-meta-item'>✍️ <data:post.author/></span>
+                        </b:if>
+                        <b:if cond='data:post.numComments'>
+                          <span class='post-meta-item'>💬 <data:post.numComments/> মন্তব্য</span>
+                        </b:if>
+                      </div>
+
+                      <!-- Featured Image -->
+                      <b:if cond='data:post.featuredImage'>
+                        <a expr:href='data:post.url'>
+                          <img expr:alt='data:post.title' expr:src='data:post.featuredImage' loading='lazy' style='margin-bottom: 14px; border-radius: 16px;'/>
+                        </a>
+                      </b:if>
+
+                      <!-- Body/Snippet -->
+                      <div class='post-snippet'>
+                        <data:post.snippet/>
+                      </div>
+
+                      <!-- Read More -->
+                      <a expr:href='data:post.url' style='display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 10px 18px; background: var(--primary); color: white; border-radius: 999px; font-weight: 700; font-size: 0.88rem; transition: opacity .2s;'>
+                        আরও পড়ুন →
+                      </a>
+
+                      <!-- Share Bar -->
+                      <div class='share-bar'>
+                        <span class='share-bar-label'>শেয়ার:</span>
+                        <a class='share-btn share-btn-fb' expr:href='&quot;https://www.facebook.com/sharer/sharer.php?u=&quot; + data:post.url' rel='noopener' target='_blank' title='ফেসবুক'>f</a>
+                        <a class='share-btn share-btn-tw' expr:href='&quot;https://twitter.com/intent/tweet?url=&quot; + data:post.url + &quot;&amp;text=&quot; + data:post.title' rel='noopener' target='_blank' title='টুইটার'>𝕏</a>
+                        <button class='share-btn share-btn-copy' expr:data-url='data:post.url' onclick='copyLink(this)' title='লিংক কপি'>🔗</button>
+                        <button class='share-btn share-btn-bookmark' onclick='toggleBookmark(this)' title='বুকমার্ক'>🔖 বুকমার্ক</button>
+                      </div>
+                    </article>
+                  </b:loop>
+
+                  <!-- Pager -->
+                  <b:include name='nextprev'/>
+                </b:includable>
+
+                <b:includable id='nextprev'>
+                  <div style='display: flex; justify-content: space-between; margin-top: 20px;'>
+                    <b:if cond='data:newerPageUrl'>
+                      <a class='nav-chip' expr:href='data:newerPageUrl'>← নতুন পোস্ট</a>
+                    </b:if>
+                    <b:if cond='data:olderPageUrl'>
+                      <a class='nav-chip' expr:href='data:olderPageUrl'>পুরাতন পোস্ট →</a>
+                    </b:if>
+                  </div>
+                </b:includable>
+
+                <b:includable id='post' var='post'>
+                  <!-- kept for compatibility -->
+                </b:includable>
+
+                <b:includable id='comment-form' var='post'>
+                  <div class='comments-section'>
+                    <h4>💬 মন্তব্য করুন</h4>
+                    <div class='comment-form'>
+                      <b:include data='post' name='comment-form'/>
+                    </div>
+                  </div>
+                </b:includable>
+
+                <b:includable id='comments' var='post'>
+                  <div class='comments-section'>
+                    <h4>💬 মন্তব্য (<data:post.numComments/>)</h4>
+                    <b:loop values='data:post.comments' var='comment'>
+                      <div class='comment-item'>
+                        <span class='comment-author'><data:comment.author/></span>
+                        <span class='comment-date'><data:comment.date/></span>
+                        <div class='comment-body'><data:comment.body/></div>
+                      </div>
+                    </b:loop>
+                  </div>
+                </b:includable>
+              </b:widget>
             </b:section>
           </div>
 
+          <!-- SIDEBAR -->
           <aside class='sidebar-card'>
             <h2 class='section-title'>সাইডবার</h2>
             <b:section class='sidebar-section' id='sidebar-section' preferred='yes' showaddelement='yes'>
               <b:widget id='Profile1' locked='false' title='About' type='Profile' visible='true'/>
-              <b:widget id='PopularPosts1' locked='false' title='জনপ্রিয় পোস্ট' type='PopularPosts' visible='true'/>
+              <b:widget id='PopularPosts1' locked='false' title='জনপ্রিয় পোস্ট' type='PopularPosts' visible='true'/>
               <b:widget id='Label1' locked='false' title='ক্যাটাগরি' type='Label' visible='true'/>
             </b:section>
           </aside>
         </section>
+
+        <!-- MASONRY SECTION -->
+        <div class='section-divider'>
+          <span class='section-divider-text'>✦ গলাচিপার স্পন্দন ✦</span>
+        </div>
+
+        <section class='masonry-section' id='masonry-section'>
+          <!-- Populated via Blogger feed JS below -->
+        </section>
+
       </main>
 
+      <!-- FOOTER -->
       <footer class='container footer-shell'>
         <div class='footer-card'>
           <b:section class='footer-section' id='footer-section' maxwidgets='2' showaddelement='yes'>
             <b:widget id='Text1' locked='false' title='Footer Note' type='Text' visible='true'/>
           </b:section>
-          <p class='copyright'>© <data:blog.title/> — Bengali editorial layout with dark header, category color system, and card-based reading experience.</p>
+          <p class='copyright'>© <data:blog.title/> — গলাচিপার সংবাদ, ব্লগ ও ডিরেক্টরি পোর্টাল।</p>
         </div>
       </footer>
+
+      <!-- BACK TO TOP -->
+      <button class='back-to-top' id='backToTop' onclick='window.scrollTo({top:0,behavior:&quot;smooth&quot;})'>↑</button>
     </div>
+
+    <!-- SCRIPTS -->
+    <script>
+      //<![CDATA[
+      // Copy link
+      function copyLink(btn) {
+        var url = btn.getAttribute('data-url') || window.location.href;
+        navigator.clipboard.writeText(url).then(function() {
+          btn.textContent = '✅';
+          setTimeout(function() { btn.textContent = '🔗'; }, 1500);
+        });
+      }
+
+      // Bookmark toggle (localStorage)
+      function toggleBookmark(btn) {
+        var post = btn.closest('.post');
+        var title = post ? post.querySelector('.post-title a') : null;
+        var url = title ? title.href : window.location.href;
+        var key = 'galachipa_bookmarks';
+        var bookmarks = JSON.parse(localStorage.getItem(key) || '[]');
+        var idx = bookmarks.indexOf(url);
+        if (idx > -1) {
+          bookmarks.splice(idx, 1);
+          btn.textContent = '🔖 বুকমার্ক';
+          btn.style.background = '';
+          btn.style.color = '';
+        } else {
+          bookmarks.push(url);
+          btn.textContent = '✅ সেভ হয়েছে';
+          btn.style.background = 'var(--primary-light)';
+          btn.style.color = 'var(--primary)';
+        }
+        localStorage.setItem(key, JSON.stringify(bookmarks));
+      }
+
+      // Restore bookmark state on load
+      document.addEventListener('DOMContentLoaded', function() {
+        var bookmarks = JSON.parse(localStorage.getItem('galachipa_bookmarks') || '[]');
+        document.querySelectorAll('.share-btn-bookmark').forEach(function(btn) {
+          var post = btn.closest('.post');
+          var title = post ? post.querySelector('.post-title a') : null;
+          var url = title ? title.href : '';
+          if (bookmarks.indexOf(url) > -1) {
+            btn.textContent = '✅ সেভ হয়েছে';
+            btn.style.background = 'var(--primary-light)';
+            btn.style.color = 'var(--primary)';
+          }
+        });
+      });
+
+      // Back to top
+      window.addEventListener('scroll', function() {
+        var btn = document.getElementById('backToTop');
+        if (btn) btn.style.display = window.scrollY > 400 ? 'flex' : 'none';
+      });
+
+      // Masonry grid via Blogger JSON feed
+      (function() {
+        var masonryEl = document.getElementById('masonry-section');
+        if (!masonryEl) return;
+
+        var feedUrl = window.location.origin + '/feeds/posts/default?alt=json&max-results=20';
+
+        fetch(feedUrl)
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            var entries = (data.feed && data.feed.entry) || [];
+            if (!entries.length) return;
+
+            var grid = document.createElement('div');
+            grid.className = 'masonry-grid';
+
+            var ratios = ['56.25%', '75%', '100%', '66.66%'];
+
+            entries.forEach(function(entry, i) {
+              var title = entry.title.$t || '';
+              var link = '';
+              (entry.link || []).forEach(function(l) { if (l.rel === 'alternate') link = l.href; });
+
+              var img = '';
+              if (entry.media$thumbnail) {
+                img = entry.media$thumbnail.url.replace(/\/s\d+(-c)?\//, '/s600/');
+              }
+
+              var snippet = '';
+              if (entry.summary) snippet = entry.summary.$t || '';
+              else if (entry.content) snippet = entry.content.$t.replace(/<[^>]+>/g, '').slice(0, 120);
+
+              var labels = (entry.category || []).map(function(c) { return c.term; });
+              var tagClass = 'tag-news';
+              if (labels.indexOf('ব্লগ') > -1) tagClass = 'tag-blog';
+              else if (labels.indexOf('ডিরেক্টরি') > -1) tagClass = 'tag-directory';
+
+              var item = document.createElement('div');
+              item.className = 'masonry-item animate-fade-in';
+              item.style.animationDelay = (i * 50) + 'ms';
+
+              var html = '';
+              if (img) {
+                var ratio = ratios[i % ratios.length];
+                html += '<a href="' + link + '" style="display:block;position:relative;padding-bottom:' + ratio + ';overflow:hidden;">';
+                html += '<img src="' + img + '" alt="' + title + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:0;"/>';
+                html += '</a>';
+              }
+              html += '<div class="masonry-item-content">';
+              if (labels.length) html += '<span class="' + tagClass + '" style="margin-bottom:8px;">' + labels[0] + '</span> ';
+              html += '<div class="masonry-item-title"><a href="' + link + '">' + title + '</a></div>';
+              if (snippet) html += '<p class="masonry-item-excerpt">' + snippet + '</p>';
+              html += '</div>';
+
+              item.innerHTML = html;
+              grid.appendChild(item);
+            });
+
+            masonryEl.appendChild(grid);
+          })
+          .catch(function(err) { console.log('Masonry feed error:', err); });
+      })();
+      //]]>
+    </script>
   </body>
 </html>

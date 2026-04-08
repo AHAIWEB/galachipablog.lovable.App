@@ -441,12 +441,19 @@ export default function AdminArchiveHub() {
                         }`}>{item.status}</span>
                       </div>
                       {item.excerpt && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{item.excerpt}</p>}
-                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground flex-wrap">
                         {item.category && <span className="flex items-center gap-0.5"><FolderOpen className="h-3 w-3" />{item.category}</span>}
                         {item.tags?.length > 0 && <span className="flex items-center gap-0.5"><Tag className="h-3 w-3" />{item.tags.length}</span>}
                         {(() => { try { const imgs = typeof item.images === 'string' ? JSON.parse(item.images) : item.images; return imgs?.length > 0 ? <span className="flex items-center gap-0.5"><Image className="h-3 w-3" />{imgs.length}</span> : null; } catch { return null; } })()}
-                        <span>{item.source_name}</span>
+                        {item.source_name && <span>{item.source_name}</span>}
                       </div>
+                      {item.source_url && (
+                        <a href={item.source_url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 mt-1 text-[10px] text-primary/70 hover:text-primary hover:underline truncate max-w-full">
+                          <Globe className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{item.source_url}</span>
+                        </a>
+                      )}
                       {item.ai_summary && (
                         <p className="text-xs text-muted-foreground mt-1 bg-muted/50 rounded p-1.5 line-clamp-2">
                           <Sparkles className="h-3 w-3 inline mr-1 text-amber-500" />{item.ai_summary}

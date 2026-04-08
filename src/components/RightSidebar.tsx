@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { CreditCard } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
 export default function RightSidebar() {
   const [cardIdx, setCardIdx] = useState(0);

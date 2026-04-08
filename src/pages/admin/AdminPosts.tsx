@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Send, Globe, Share2, Search, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Post = Tables<"posts">;
@@ -14,6 +14,7 @@ export default function AdminPosts() {
   const [form, setForm] = useState({ title: "", slug: "", content: "", excerpt: "", featured_image: "", category_id: "", status: "draft" as "draft" | "published" | "archived", is_featured: false });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ["admin-posts"],
@@ -58,7 +59,6 @@ export default function AdminPosts() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Soft delete
       const { error } = await supabase.from("posts").update({ deleted_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
     },
@@ -77,12 +77,37 @@ export default function AdminPosts() {
     else toast.success("Blogger-এ পাবলিশ হয়েছে!");
   };
 
+  const [isBulkPublishing, setIsBulkPublishing] = useState(false);
+
+  const bulkPublishBlogger = async () => {
+    const selected = (posts ?? []).filter(p => selectedIds.has(p.id));
+    if (selected.length === 0) return toast.error("পোস্ট সিলেক্ট করুন");
+    if (!confirm(`${selected.length}টি পোস্ট Blogger-এ পাবলিশ করবেন?`)) return;
+
+    setIsBulkPublishing(true);
+    let success = 0, fail = 0;
+
+    for (const post of selected) {
+      try {
+        const { data, error } = await supabase.functions.invoke("publish-blogger", {
+          body: { title: post.title, content: post.content || post.excerpt || "" },
+        });
+        if (error || data?.error) fail++;
+        else success++;
+      } catch {
+        fail++;
+      }
+    }
+
+    setIsBulkPublishing(false);
+    setSelectedIds(new Set());
+    toast.success(`Blogger: ${success} সফল, ${fail} ব্যর্থ`);
+  };
+
   const sharePost = async (post: Post) => {
     const url = `${window.location.origin}/post/${post.slug}`;
     if (navigator.share) {
-      try {
-        await navigator.share({ title: post.title, text: post.excerpt || "", url });
-      } catch { /* cancelled */ }
+      try { await navigator.share({ title: post.title, text: post.excerpt || "", url }); } catch { /* cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
       toast.success("লিংক কপি হয়েছে!");
@@ -111,13 +136,35 @@ export default function AdminPosts() {
     return true;
   });
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map(p => p.id)));
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="font-heading font-bold text-2xl">📝 কন্টেন্ট হাব</h1>
-        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
-          <Plus className="h-4 w-4" /> নতুন পোস্ট
-        </button>
+        <div className="flex gap-2">
+          {selectedIds.size > 0 && (
+            <button onClick={bulkPublishBlogger} disabled={isBulkPublishing}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium disabled:opacity-50">
+              <Globe className="h-4 w-4" />
+              {isBulkPublishing ? "পাবলিশ হচ্ছে..." : `Blogger (${selectedIds.size})`}
+            </button>
+          )}
+          <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+            <Plus className="h-4 w-4" /> নতুন পোস্ট
+          </button>
+        </div>
       </div>
 
       {/* Search & filter */}
@@ -183,12 +230,27 @@ export default function AdminPosts() {
       )}
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
+        {/* Bulk select header */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/30">
+          <button onClick={toggleSelectAll} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+            {selectedIds.size === filtered.length && filtered.length > 0
+              ? <CheckSquare className="h-4 w-4 text-primary" />
+              : <Square className="h-4 w-4" />}
+            {selectedIds.size > 0 ? `${selectedIds.size}টি সিলেক্টেড` : "সব সিলেক্ট"}
+          </button>
+        </div>
+
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">লোড হচ্ছে...</p>
         ) : filtered.length > 0 ? (
           <div className="divide-y divide-border">
             {filtered.map(post => (
-              <div key={post.id} className="p-3 sm:p-4 flex items-center justify-between gap-2 hover:bg-muted/50 transition-colors">
+              <div key={post.id} className="p-3 sm:p-4 flex items-center gap-2 hover:bg-muted/50 transition-colors">
+                <button onClick={() => toggleSelect(post.id)} className="shrink-0">
+                  {selectedIds.has(post.id)
+                    ? <CheckSquare className="h-4 w-4 text-primary" />
+                    : <Square className="h-4 w-4 text-muted-foreground" />}
+                </button>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium text-sm truncate">{post.title}</h3>
                   <div className="flex items-center gap-2 mt-1">

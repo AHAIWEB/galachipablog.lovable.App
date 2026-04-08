@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Archive, Globe, Plus, Trash2, RefreshCw, Play, Pause, Sparkles,
-  ExternalLink, Clock, FolderOpen, Search, Image, Tag, Layers,
+  ExternalLink, Clock, FolderOpen, Search, Image, Tag, Layers, Send,
 } from "lucide-react";
 
 type ArchiveContent = {

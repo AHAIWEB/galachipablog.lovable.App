@@ -49,6 +49,8 @@ export default function AdminArchiveHub() {
   const [scrapeMode, setScrapeMode] = useState<"single" | "bulk">("single");
   const [isScraping, setIsScraping] = useState(false);
   const [filterCat, setFilterCat] = useState("");
+  const [publishingItem, setPublishingItem] = useState<string | null>(null);
+  const [publishCatId, setPublishCatId] = useState<string>("");
 
   // Schedule form
   const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "" });

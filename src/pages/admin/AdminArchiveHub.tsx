@@ -224,6 +224,42 @@ export default function AdminArchiveHub() {
     bulkPublish.mutate({ items, categoryId: bulkPublishCatId });
   };
 
+  // Re-fetch broken/incomplete items
+  const [isRefetching, setIsRefetching] = useState(false);
+
+  const refetchItems = async (items: ArchiveContent[]) => {
+    if (items.length === 0) return toast.error("আইটেম সিলেক্ট করুন");
+    setIsRefetching(true);
+    try {
+      const urls = items.map(i => i.source_url).filter(Boolean);
+      const ids = items.map(i => i.id);
+      // Delete old broken records
+      const { error: delErr } = await supabase.from("archived_contents").delete().in("id", ids);
+      if (delErr) throw delErr;
+      // Re-scrape with same URLs
+      const category = items[0]?.category || undefined;
+      const { data, error } = await supabase.functions.invoke("archive-scraper", {
+        body: { urls, category, discover_links: false, max_pages: urls.length },
+      });
+      if (error) throw error;
+      const successCount = data?.successCount ?? 0;
+      toast.success(`${successCount}/${urls.length}টি কন্টেন্ট রি-আপডেট হয়েছে`);
+      qc.invalidateQueries({ queryKey: ["archive-contents"] });
+      setSelectedIds(new Set());
+    } catch (e: any) {
+      toast.error(e.message || "রি-আপডেট ব্যর্থ");
+    } finally {
+      setIsRefetching(false);
+    }
+  };
+
+  const refetchAll = async () => {
+    const broken = contents?.filter(c => c.status !== "published" && (!c.content || c.content.length < 100)) ?? [];
+    if (broken.length === 0) return toast.info("ভাঙ্গা কন্টেন্ট নেই");
+    if (!confirm(`${broken.length}টি ভাঙ্গা/অসম্পূর্ণ কন্টেন্ট রি-আপডেট করবেন?`)) return;
+    await refetchItems(broken);
+  };
+
   const deleteContent = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("archived_contents").delete().eq("id", id);
@@ -386,6 +422,11 @@ export default function AdminArchiveHub() {
               {selectedIds.size > 0 && (
                 <>
                   <div className="flex-1" />
+                  <button onClick={() => { const items = contents?.filter(c => selectedIds.has(c.id)) ?? []; refetchItems(items); }}
+                    disabled={isRefetching}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-medium disabled:opacity-50">
+                    <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} /> রি-আপডেট ({selectedIds.size})
+                  </button>
                   <button onClick={() => setShowBulkPublish(!showBulkPublish)}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium">
                     <ChevronsUp className="h-3.5 w-3.5" /> বাল্ক পাবলিশ ({selectedIds.size})
@@ -394,6 +435,15 @@ export default function AdminArchiveHub() {
               )}
             </div>
           )}
+
+          {/* Re-fetch all broken button */}
+          <div className="flex gap-2">
+            <button onClick={refetchAll} disabled={isRefetching}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 text-xs font-medium disabled:opacity-50 transition-colors">
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+              সব ভাঙ্গা কন্টেন্ট রি-আপডেট
+            </button>
+          </div>
 
           {/* Bulk publish panel */}
           {showBulkPublish && selectedIds.size > 0 && (
@@ -467,10 +517,16 @@ export default function AdminArchiveHub() {
                     </a>
                     <div className="flex-1" />
                     {item.status !== "published" && publishingItem !== item.id && (
-                      <button onClick={() => { setPublishingItem(item.id); setPublishCatId(autoMatchCategory(item.category)); }}
-                        className="p-1.5 hover:bg-green-500/10 rounded text-green-600" title="পোস্টে পাবলিশ">
-                        <Send className="h-3.5 w-3.5" />
-                      </button>
+                      <>
+                        <button onClick={() => refetchItems([item])} disabled={isRefetching}
+                          className="p-1.5 hover:bg-amber-500/10 rounded text-amber-600" title="রি-আপডেট">
+                          <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+                        </button>
+                        <button onClick={() => { setPublishingItem(item.id); setPublishCatId(autoMatchCategory(item.category)); }}
+                          className="p-1.5 hover:bg-green-500/10 rounded text-green-600" title="পোস্টে পাবলিশ">
+                          <Send className="h-3.5 w-3.5" />
+                        </button>
+                      </>
                     )}
                     <button onClick={() => aiProcess(item)} className="p-1.5 hover:bg-primary/10 rounded text-primary" title="AI প্রসেস">
                       <Sparkles className="h-3.5 w-3.5" />

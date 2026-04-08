@@ -95,7 +95,9 @@ export type Database = {
       categories: {
         Row: {
           created_at: string
+          deleted_at: string | null
           id: string
+          is_locked: boolean
           letter: string | null
           name: string
           parent_id: string | null
@@ -106,7 +108,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
+          is_locked?: boolean
           letter?: string | null
           name: string
           parent_id?: string | null
@@ -117,7 +121,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
+          is_locked?: boolean
           letter?: string | null
           name?: string
           parent_id?: string | null
@@ -246,10 +252,12 @@ export type Database = {
           category_id: string | null
           content: string | null
           created_at: string
+          deleted_at: string | null
           excerpt: string | null
           featured_image: string | null
           id: string
           is_featured: boolean
+          is_locked: boolean
           slug: string
           status: Database["public"]["Enums"]["post_status"]
           title: string
@@ -261,10 +269,12 @@ export type Database = {
           category_id?: string | null
           content?: string | null
           created_at?: string
+          deleted_at?: string | null
           excerpt?: string | null
           featured_image?: string | null
           id?: string
           is_featured?: boolean
+          is_locked?: boolean
           slug: string
           status?: Database["public"]["Enums"]["post_status"]
           title: string
@@ -276,10 +286,12 @@ export type Database = {
           category_id?: string | null
           content?: string | null
           created_at?: string
+          deleted_at?: string | null
           excerpt?: string | null
           featured_image?: string | null
           id?: string
           is_featured?: boolean
+          is_locked?: boolean
           slug?: string
           status?: Database["public"]["Enums"]["post_status"]
           title?: string

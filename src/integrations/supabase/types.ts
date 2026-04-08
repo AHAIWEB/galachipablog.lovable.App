@@ -44,6 +44,57 @@ export type Database = {
         }
         Relationships: []
       }
+      ads: {
+        Row: {
+          ad_type: string
+          click_count: number
+          content: string
+          created_at: string
+          end_date: string | null
+          id: string
+          image_url: string | null
+          link_url: string | null
+          name: string
+          placement: string
+          start_date: string | null
+          status: string
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          ad_type?: string
+          click_count?: number
+          content: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          name: string
+          placement?: string
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          ad_type?: string
+          click_count?: number
+          content?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          name?: string
+          placement?: string
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: []
+      }
       business_cards: {
         Row: {
           address: string | null

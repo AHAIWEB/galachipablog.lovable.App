@@ -22,6 +22,7 @@ import AdminPhotocard from "./pages/admin/AdminPhotocard";
 import AdminWebP from "./pages/admin/AdminWebP";
 import AdminQuoteCard from "./pages/admin/AdminQuoteCard";
 import AdminSecurity from "./pages/admin/AdminSecurity";
+import AboutPage from "./pages/AboutPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

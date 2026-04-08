@@ -40,17 +40,49 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: corsHeaders });
     }
 
-    const { content, title } = await req.json();
-    if (!content) {
-      return new Response(JSON.stringify({ error: 'Content is required' }), { status: 400, headers: corsHeaders });
-    }
+    const body = await req.json();
+    const { content, title, prompt, type } = body;
 
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableApiKey) {
       return new Response(JSON.stringify({ error: 'AI API key not configured' }), { status: 500, headers: corsHeaders });
     }
 
-    // Call Lovable AI Gateway for summary + tags
+    // Type "text" - simple text generation from prompt
+    if (type === 'text' && prompt) {
+      const aiResponse = await fetch('https://ai-gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${lovableApiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: 'আপনি একজন বাংলা কন্টেন্ট রাইটার। শুধু অনুরোধ করা কন্টেন্ট লিখুন, কোনো ব্যাখ্যা বা মার্কডাউন ফরম্যাটিং ছাড়া।' },
+            { role: 'user', content: prompt },
+          ],
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        return new Response(JSON.stringify({ error: `AI failed: ${aiResponse.status}` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const aiData = await aiResponse.json();
+      const result = aiData.choices?.[0]?.message?.content || '';
+
+      return new Response(
+        JSON.stringify({ success: true, result }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Default: content processing mode
+    if (!content) {
+      return new Response(JSON.stringify({ error: 'Content or prompt is required' }), { status: 400, headers: corsHeaders });
+    }
+
     const aiResponse = await fetch('https://ai-gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   Archive, Globe, Plus, Trash2, RefreshCw, Play, Pause, Sparkles,
   ExternalLink, Clock, FolderOpen, Search, Image, Tag, Layers, Send,
+  CheckSquare, Square, ChevronsUp,
 } from "lucide-react";
 
 type ArchiveContent = {
@@ -51,8 +52,10 @@ export default function AdminArchiveHub() {
   const [filterCat, setFilterCat] = useState("");
   const [publishingItem, setPublishingItem] = useState<string | null>(null);
   const [publishCatId, setPublishCatId] = useState<string>("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPublishCatId, setBulkPublishCatId] = useState<string>("");
+  const [showBulkPublish, setShowBulkPublish] = useState(false);
 
-  // Schedule form
   const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "" });
 
   const { data: contents, isLoading } = useQuery({
@@ -85,34 +88,47 @@ export default function AdminArchiveHub() {
 
   const archiveCategories = [...new Set((contents || []).map(c => c.category).filter(Boolean))] as string[];
 
-  // Auto-match archive category to DB category
   const autoMatchCategory = (archiveCat: string | null): string => {
     if (!archiveCat || !dbCategories?.length) return "";
     const match = dbCategories.find(c => c.name.toLowerCase() === archiveCat.toLowerCase());
     return match?.id || "";
   };
 
-  // Stats
   const total = contents?.length ?? 0;
   const fetched = contents?.filter(c => c.status === "fetched").length ?? 0;
   const aiProcessed = contents?.filter(c => c.status === "ai_processed").length ?? 0;
   const published = contents?.filter(c => c.status === "published").length ?? 0;
 
+  // Unpublished items for selection
+  const unpublishedItems = contents?.filter(c => c.status !== "published") ?? [];
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === unpublishedItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(unpublishedItems.map(i => i.id)));
+    }
+  };
+
   const handleScrape = async () => {
     const urls = scrapeMode === "single"
       ? [urlInput.trim()]
       : bulkUrls.split("\n").map(u => u.trim()).filter(Boolean);
-
     if (urls.length === 0) return toast.error("URL দিন");
     setIsScraping(true);
-
     try {
       const { data, error } = await supabase.functions.invoke("archive-scraper", {
         body: { urls, category: scrapeCategory || undefined },
       });
-
       if (error) throw error;
-
       const successCount = data?.results?.filter((r: any) => r.success).length ?? 0;
       toast.success(`${successCount}/${urls.length} URL সফলভাবে স্ক্র্যাপ হয়েছে`);
       qc.invalidateQueries({ queryKey: ["archive-contents"] });
@@ -130,13 +146,11 @@ export default function AdminArchiveHub() {
         body: { title: item.title, content: item.content || item.excerpt || "" },
       });
       if (error) throw error;
-
       const serviceUpdate = await supabase.from("archived_contents").update({
         ai_summary: data?.data?.summary || null,
         ai_tags: data?.data?.tags || [],
         status: "ai_processed",
       }).eq("id", item.id);
-
       if (serviceUpdate.error) throw serviceUpdate.error;
       toast.success("AI প্রসেসিং সম্পন্ন");
       qc.invalidateQueries({ queryKey: ["archive-contents"] });
@@ -150,14 +164,10 @@ export default function AdminArchiveHub() {
       const slug = item.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\u0980-\u09FF\w-]/g, "").slice(0, 120) || `archive-${Date.now()}`;
       const resolvedCatId = categoryId || autoMatchCategory(item.category) || null;
       const { error } = await supabase.from("posts").insert({
-        title: item.title,
-        slug,
-        content: item.content || "",
+        title: item.title, slug, content: item.content || "",
         excerpt: item.excerpt || item.ai_summary || "",
         featured_image: item.featured_image || "",
-        category_id: resolvedCatId,
-        status: "published" as const,
-        is_featured: false,
+        category_id: resolvedCatId, status: "published" as const, is_featured: false,
       });
       if (error) throw error;
       await supabase.from("archived_contents").update({ status: "published" }).eq("id", item.id);
@@ -172,6 +182,45 @@ export default function AdminArchiveHub() {
     onError: (e: any) => toast.error(e.message || "পাবলিশ ব্যর্থ"),
   });
 
+  // Bulk publish mutation
+  const bulkPublish = useMutation({
+    mutationFn: async ({ items, categoryId }: { items: ArchiveContent[]; categoryId: string }) => {
+      let successCount = 0;
+      for (const item of items) {
+        try {
+          const slug = item.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\u0980-\u09FF\w-]/g, "").slice(0, 120) || `archive-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          const resolvedCatId = categoryId || autoMatchCategory(item.category) || null;
+          const { error } = await supabase.from("posts").insert({
+            title: item.title, slug, content: item.content || "",
+            excerpt: item.excerpt || item.ai_summary || "",
+            featured_image: item.featured_image || "",
+            category_id: resolvedCatId, status: "published" as const, is_featured: false,
+          });
+          if (!error) {
+            await supabase.from("archived_contents").update({ status: "published" }).eq("id", item.id);
+            successCount++;
+          }
+        } catch { /* skip failed */ }
+      }
+      return successCount;
+    },
+    onSuccess: (count) => {
+      qc.invalidateQueries({ queryKey: ["archive-contents"] });
+      qc.invalidateQueries({ queryKey: ["admin-posts"] });
+      setSelectedIds(new Set());
+      setShowBulkPublish(false);
+      setBulkPublishCatId("");
+      toast.success(`${count}টি কন্টেন্ট পোস্ট হিসেবে পাবলিশ হয়েছে!`);
+    },
+    onError: (e: any) => toast.error(e.message || "বাল্ক পাবলিশ ব্যর্থ"),
+  });
+
+  const handleBulkPublish = () => {
+    const items = contents?.filter(c => selectedIds.has(c.id)) ?? [];
+    if (items.length === 0) return toast.error("কন্টেন্ট সিলেক্ট করুন");
+    bulkPublish.mutate({ items, categoryId: bulkPublishCatId });
+  };
+
   const deleteContent = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("archived_contents").delete().eq("id", id);
@@ -183,10 +232,8 @@ export default function AdminArchiveHub() {
   const addSchedule = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("archive_schedules").insert({
-        name: schedForm.name,
-        url: schedForm.url,
-        scrape_type: schedForm.scrape_type,
-        interval_hours: schedForm.interval_hours,
+        name: schedForm.name, url: schedForm.url,
+        scrape_type: schedForm.scrape_type, interval_hours: schedForm.interval_hours,
         category: schedForm.category || null,
       });
       if (error) throw error;
@@ -226,7 +273,6 @@ export default function AdminArchiveHub() {
     <div>
       <h1 className="font-heading font-bold text-2xl mb-4">🗄️ আর্কাইভ হাব — কন্টেন্ট স্ক্র্যাপার</h1>
 
-      {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-muted rounded-lg p-1 w-fit">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
@@ -284,14 +330,9 @@ export default function AdminArchiveHub() {
         <div className="space-y-4">
           <div className="bg-card rounded-xl border border-border p-4">
             <div className="flex gap-2 mb-3">
-              <button onClick={() => setScrapeMode("single")} className={`px-3 py-1 rounded-md text-sm ${scrapeMode === "single" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                একক URL
-              </button>
-              <button onClick={() => setScrapeMode("bulk")} className={`px-3 py-1 rounded-md text-sm ${scrapeMode === "bulk" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                বাল্ক URL
-              </button>
+              <button onClick={() => setScrapeMode("single")} className={`px-3 py-1 rounded-md text-sm ${scrapeMode === "single" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>একক URL</button>
+              <button onClick={() => setScrapeMode("bulk")} className={`px-3 py-1 rounded-md text-sm ${scrapeMode === "bulk" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>বাল্ক URL</button>
             </div>
-
             {scrapeMode === "single" ? (
               <input value={urlInput} onChange={e => setUrlInput(e.target.value)} placeholder="https://vromonguide.com/"
                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm mb-3" />
@@ -300,7 +341,6 @@ export default function AdminArchiveHub() {
                 placeholder="প্রতি লাইনে একটি URL দিন..."
                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm mb-3 resize-y" />
             )}
-
             <div className="flex gap-2 items-center">
               <input value={scrapeCategory} onChange={e => setScrapeCategory(e.target.value)} placeholder="ক্যাটাগরি (ঐচ্ছিক)"
                 className="px-3 py-2 rounded-lg border border-input bg-background text-sm flex-1" />
@@ -325,11 +365,60 @@ export default function AdminArchiveHub() {
             ))}
           </div>
 
+          {/* Bulk actions bar */}
+          {unpublishedItems.length > 0 && (
+            <div className="flex items-center gap-2 bg-card rounded-xl border border-border p-3">
+              <button onClick={toggleSelectAll} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+                {selectedIds.size === unpublishedItems.length && unpublishedItems.length > 0
+                  ? <CheckSquare className="h-4 w-4 text-primary" />
+                  : <Square className="h-4 w-4" />}
+                {selectedIds.size > 0 ? `${selectedIds.size}টি সিলেক্টেড` : "সব সিলেক্ট"}
+              </button>
+              {selectedIds.size > 0 && (
+                <>
+                  <div className="flex-1" />
+                  <button onClick={() => setShowBulkPublish(!showBulkPublish)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium">
+                    <ChevronsUp className="h-3.5 w-3.5" /> বাল্ক পাবলিশ ({selectedIds.size})
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Bulk publish panel */}
+          {showBulkPublish && selectedIds.size > 0 && (
+            <div className="bg-green-50 dark:bg-green-950/30 rounded-xl border border-green-200 dark:border-green-800 p-4">
+              <p className="text-sm font-medium mb-2">📦 {selectedIds.size}টি কন্টেন্ট একসাথে পাবলিশ করুন</p>
+              <div className="flex items-center gap-2">
+                <select value={bulkPublishCatId} onChange={e => setBulkPublishCatId(e.target.value)}
+                  className="flex-1 px-2 py-1.5 rounded-lg border border-input bg-background text-xs">
+                  <option value="">ক্যাটাগরি (অটো ম্যাচ)</option>
+                  {dbCategories?.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
+                </select>
+                <button onClick={handleBulkPublish} disabled={bulkPublish.isPending}
+                  className="px-4 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium disabled:opacity-50">
+                  {bulkPublish.isPending ? "পাবলিশ হচ্ছে..." : "পাবলিশ করুন"}
+                </button>
+                <button onClick={() => { setShowBulkPublish(false); setBulkPublishCatId(""); }}
+                  className="px-2 py-1.5 rounded-lg bg-muted text-xs">বাতিল</button>
+              </div>
+            </div>
+          )}
+
           {isLoading ? <p className="text-sm text-muted-foreground p-4">লোড হচ্ছে...</p> : (
             <div className="space-y-2">
               {contents?.map(item => (
-                <div key={item.id} className="bg-card rounded-xl border border-border p-3">
+                <div key={item.id} className={`bg-card rounded-xl border p-3 ${selectedIds.has(item.id) ? "border-primary bg-primary/5" : "border-border"}`}>
                   <div className="flex gap-3">
+                    {/* Checkbox for unpublished */}
+                    {item.status !== "published" && (
+                      <button onClick={() => toggleSelect(item.id)} className="mt-1 shrink-0">
+                        {selectedIds.has(item.id)
+                          ? <CheckSquare className="h-4 w-4 text-primary" />
+                          : <Square className="h-4 w-4 text-muted-foreground" />}
+                      </button>
+                    )}
                     {item.featured_image && (
                       <img src={item.featured_image} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" />
                     )}
@@ -374,7 +463,6 @@ export default function AdminArchiveHub() {
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  {/* Inline publish with category selector */}
                   {publishingItem === item.id && (
                     <div className="flex items-center gap-2 mt-2 border-t border-border pt-2 bg-muted/30 rounded p-2">
                       <select value={publishCatId} onChange={e => setPublishCatId(e.target.value)}

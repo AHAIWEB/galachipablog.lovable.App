@@ -3,6 +3,48 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 
+function SidebarAdSlot() {
+  const { data: ads = [] } = useQuery({
+    queryKey: ["ads", "sidebar"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("ads")
+        .select("*")
+        .eq("status", "active")
+        .eq("placement", "sidebar");
+      return data ?? [];
+    },
+    staleTime: 60000,
+  });
+
+  if (ads.length === 0) return null;
+
+  return (
+    <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+      <div className="px-3 py-2 bg-muted/50 border-b border-border">
+        <h3 className="font-heading font-bold text-xs text-muted-foreground">📢 বিজ্ঞাপন</h3>
+      </div>
+      <div className="p-2 space-y-2">
+        {ads.map((ad: any) => (
+          <a
+            key={ad.id}
+            href={ad.link_url || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+          >
+            {ad.image_url ? (
+              <img src={ad.image_url} alt={ad.name} className="w-full" />
+            ) : (
+              <div className="text-sm" dangerouslySetInnerHTML={{ __html: ad.content }} />
+            )}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function RightSidebar() {
   const [cardIdx, setCardIdx] = useState(0);
 
@@ -43,6 +85,9 @@ export default function RightSidebar() {
 
   return (
     <div className="space-y-4">
+      {/* Sidebar Ad Slot - Top */}
+      <SidebarAdSlot />
+
       {/* Directory Index */}
       <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
         <div className="px-3 py-2.5 bg-accent text-accent-foreground border-b border-border">

@@ -22,6 +22,7 @@ import AdminPhotocard from "./pages/admin/AdminPhotocard";
 import AdminWebP from "./pages/admin/AdminWebP";
 import AdminQuoteCard from "./pages/admin/AdminQuoteCard";
 import AdminSecurity from "./pages/admin/AdminSecurity";
+import AdminAds from "./pages/admin/AdminAds";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";

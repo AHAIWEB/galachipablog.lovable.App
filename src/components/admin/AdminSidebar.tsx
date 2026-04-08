@@ -12,6 +12,7 @@ import {
   Quote,
   Palette,
   Shield,
+  Megaphone,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { to: "/admin/posts", icon: FileText, label: "কন্টেন্ট হাব" },
   { to: "/admin/categories", icon: FolderTree, label: "ক্যাটাগরি" },
   { to: "/admin/cards", icon: CreditCard, label: "বিজনেস কার্ড" },
+  { to: "/admin/ads", icon: Megaphone, label: "বিজ্ঞাপন" },
   { to: "/admin/feeds", icon: Rss, label: "ফিড সোর্স" },
   { to: "/admin/users", icon: Users, label: "ইউজার" },
   { to: "/admin/settings", icon: Palette, label: "সেটিংস" },

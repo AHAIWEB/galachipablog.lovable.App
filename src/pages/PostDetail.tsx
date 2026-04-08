@@ -199,17 +199,33 @@ export default function PostDetail() {
                 </p>
               )}
 
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {new Date(post.created_at).toLocaleDateString("bn-BD", {
-                    year: "numeric", month: "long", day: "numeric",
-                  })}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Eye className="h-3.5 w-3.5" />
-                  {post.view_count} বার পড়া হয়েছে
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {new Date(post.created_at).toLocaleDateString("bn-BD", {
+                      year: "numeric", month: "long", day: "numeric",
+                    })}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-3.5 w-3.5" />
+                    {post.view_count} বার পড়া হয়েছে
+                  </span>
+                  {(post as any).share_count > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Share2 className="h-3.5 w-3.5" />
+                      {(post as any).share_count} শেয়ার
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={toggleBookmark}
+                  disabled={bookmarkLoading}
+                  className={`p-2 rounded-lg transition-colors ${isBookmarked ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/10"}`}
+                  title={isBookmarked ? "বুকমার্ক সরান" : "বুকমার্ক করুন"}
+                >
+                  {isBookmarked ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+                </button>
               </div>
             </div>
 

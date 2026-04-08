@@ -49,6 +49,8 @@ export default function AdminArchiveHub() {
   const [scrapeMode, setScrapeMode] = useState<"single" | "bulk">("single");
   const [isScraping, setIsScraping] = useState(false);
   const [filterCat, setFilterCat] = useState("");
+  const [publishingItem, setPublishingItem] = useState<string | null>(null);
+  const [publishCatId, setPublishCatId] = useState<string>("");
 
   // Schedule form
   const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "" });
@@ -73,7 +75,22 @@ export default function AdminArchiveHub() {
     },
   });
 
-  const categories = [...new Set((contents || []).map(c => c.category).filter(Boolean))] as string[];
+  const { data: dbCategories } = useQuery({
+    queryKey: ["db-categories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("categories").select("id, name, type").is("deleted_at", null).order("name");
+      return data ?? [];
+    },
+  });
+
+  const archiveCategories = [...new Set((contents || []).map(c => c.category).filter(Boolean))] as string[];
+
+  // Auto-match archive category to DB category
+  const autoMatchCategory = (archiveCat: string | null): string => {
+    if (!archiveCat || !dbCategories?.length) return "";
+    const match = dbCategories.find(c => c.name.toLowerCase() === archiveCat.toLowerCase());
+    return match?.id || "";
+  };
 
   // Stats
   const total = contents?.length ?? 0;
@@ -129,14 +146,16 @@ export default function AdminArchiveHub() {
   };
 
   const publishAsPost = useMutation({
-    mutationFn: async (item: ArchiveContent) => {
+    mutationFn: async ({ item, categoryId }: { item: ArchiveContent; categoryId: string }) => {
       const slug = item.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\u0980-\u09FF\w-]/g, "").slice(0, 120) || `archive-${Date.now()}`;
+      const resolvedCatId = categoryId || autoMatchCategory(item.category) || null;
       const { error } = await supabase.from("posts").insert({
         title: item.title,
         slug,
         content: item.content || "",
         excerpt: item.excerpt || item.ai_summary || "",
         featured_image: item.featured_image || "",
+        category_id: resolvedCatId,
         status: "published" as const,
         is_featured: false,
       });
@@ -146,6 +165,8 @@ export default function AdminArchiveHub() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["archive-contents"] });
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
+      setPublishingItem(null);
+      setPublishCatId("");
       toast.success("পোস্ট হিসেবে পাবলিশ হয়েছে!");
     },
     onError: (e: any) => toast.error(e.message || "পাবলিশ ব্যর্থ"),
@@ -233,9 +254,9 @@ export default function AdminArchiveHub() {
           </div>
           <div className="bg-card rounded-xl border border-border p-4">
             <h3 className="font-heading font-semibold text-sm mb-2">ক্যাটাগরি অনুযায়ী</h3>
-            {categories.length > 0 ? (
+            {archiveCategories.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {categories.map(cat => {
+                {archiveCategories.map(cat => {
                   const count = contents?.filter(c => c.category === cat).length ?? 0;
                   return (
                     <button key={cat} onClick={() => { setFilterCat(cat); setTab("archive"); }}
@@ -299,7 +320,7 @@ export default function AdminArchiveHub() {
           {/* Category filter */}
           <div className="flex gap-2 flex-wrap items-center">
             <button onClick={() => setFilterCat("")} className={`px-2 py-1 rounded text-xs ${!filterCat ? "bg-primary text-primary-foreground" : "bg-muted"}`}>সব</button>
-            {categories.map(c => (
+            {archiveCategories.map(c => (
               <button key={c} onClick={() => setFilterCat(c)} className={`px-2 py-1 rounded text-xs ${filterCat === c ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{c}</button>
             ))}
           </div>
@@ -340,8 +361,8 @@ export default function AdminArchiveHub() {
                       <ExternalLink className="h-3 w-3" /> সোর্স
                     </a>
                     <div className="flex-1" />
-                    {item.status !== "published" && (
-                      <button onClick={() => { if (confirm("পোস্ট হিসেবে পাবলিশ করবেন?")) publishAsPost.mutate(item); }}
+                    {item.status !== "published" && publishingItem !== item.id && (
+                      <button onClick={() => { setPublishingItem(item.id); setPublishCatId(autoMatchCategory(item.category)); }}
                         className="p-1.5 hover:bg-green-500/10 rounded text-green-600" title="পোস্টে পাবলিশ">
                         <Send className="h-3.5 w-3.5" />
                       </button>
@@ -353,6 +374,23 @@ export default function AdminArchiveHub() {
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  {/* Inline publish with category selector */}
+                  {publishingItem === item.id && (
+                    <div className="flex items-center gap-2 mt-2 border-t border-border pt-2 bg-muted/30 rounded p-2">
+                      <select value={publishCatId} onChange={e => setPublishCatId(e.target.value)}
+                        className="flex-1 px-2 py-1.5 rounded-lg border border-input bg-background text-xs">
+                        <option value="">ক্যাটাগরি নির্বাচন (অটো: {item.category || "নেই"})</option>
+                        {dbCategories?.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
+                      </select>
+                      <button onClick={() => publishAsPost.mutate({ item, categoryId: publishCatId })}
+                        disabled={publishAsPost.isPending}
+                        className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
+                        {publishAsPost.isPending ? "..." : "পাবলিশ"}
+                      </button>
+                      <button onClick={() => { setPublishingItem(null); setPublishCatId(""); }}
+                        className="px-2 py-1.5 rounded-lg bg-muted text-xs">বাতিল</button>
+                    </div>
+                  )}
                 </div>
               ))}
               {contents?.length === 0 && <p className="text-sm text-muted-foreground p-4">আর্কাইভ খালি</p>}

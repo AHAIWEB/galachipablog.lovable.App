@@ -202,6 +202,35 @@ export type Database = {
           },
         ]
       }
+      bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookmarks_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_cards: {
         Row: {
           address: string | null
@@ -493,6 +522,7 @@ export type Database = {
           id: string
           is_featured: boolean
           is_locked: boolean
+          share_count: number
           slug: string
           status: Database["public"]["Enums"]["post_status"]
           title: string
@@ -510,6 +540,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           is_locked?: boolean
+          share_count?: number
           slug: string
           status?: Database["public"]["Enums"]["post_status"]
           title: string
@@ -527,6 +558,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           is_locked?: boolean
+          share_count?: number
           slug?: string
           status?: Database["public"]["Enums"]["post_status"]
           title?: string
@@ -629,6 +661,7 @@ export type Database = {
       }
       increment_ad_click: { Args: { ad_id: string }; Returns: undefined }
       increment_ad_view: { Args: { ad_id: string }; Returns: undefined }
+      increment_share_count: { Args: { p_post_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

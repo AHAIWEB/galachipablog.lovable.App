@@ -4,11 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CommentSection from "@/components/CommentSection";
-import { Calendar, Eye, Share2, Facebook, Twitter, Link as LinkIcon, ArrowLeft } from "lucide-react";
+import { Calendar, Eye, Share2, Facebook, Twitter, Link as LinkIcon, ArrowLeft, Bookmark, BookmarkCheck } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
 
 export default function PostDetail() {
+  const { user } = useAuth();
   const { slug } = useParams<{ slug: string }>();
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
 
   const { data: post, isLoading } = useQuery({
     queryKey: ["post", slug],
@@ -59,26 +64,57 @@ export default function PostDetail() {
     enabled: !!post?.category_id,
   });
 
+  // Check bookmark status
+  useEffect(() => {
+    if (!user || !post?.id) { setIsBookmarked(false); return; }
+    supabase.from("bookmarks").select("id").eq("user_id", user.id).eq("post_id", post.id).maybeSingle()
+      .then(({ data }) => setIsBookmarked(!!data));
+  }, [user, post?.id]);
+
+  const toggleBookmark = async () => {
+    if (!user) { toast.error("বুকমার্ক করতে লগইন করুন"); return; }
+    if (!post?.id || bookmarkLoading) return;
+    setBookmarkLoading(true);
+    try {
+      if (isBookmarked) {
+        await supabase.from("bookmarks").delete().eq("user_id", user.id).eq("post_id", post.id);
+        setIsBookmarked(false);
+        toast.success("বুকমার্ক সরানো হয়েছে");
+      } else {
+        await supabase.from("bookmarks").insert({ user_id: user.id, post_id: post.id });
+        setIsBookmarked(true);
+        toast.success("বুকমার্ক করা হয়েছে!");
+      }
+    } catch { toast.error("সমস্যা হয়েছে"); }
+    setBookmarkLoading(false);
+  };
+
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  const trackShare = async () => {
+    if (post?.id) {
+      await supabase.rpc("increment_share_count", { p_post_id: post.id });
+    }
+  };
 
   const shareActions = [
     {
       icon: Facebook,
       label: "ফেসবুক",
       color: "hover:bg-blue-500/10 hover:text-blue-600",
-      onClick: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank"),
+      onClick: () => { trackShare(); window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank"); },
     },
     {
       icon: Twitter,
       label: "টুইটার",
       color: "hover:bg-sky-500/10 hover:text-sky-500",
-      onClick: () => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(post?.title || "")}`, "_blank"),
+      onClick: () => { trackShare(); window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(post?.title || "")}`, "_blank"); },
     },
     {
       icon: LinkIcon,
       label: "লিংক কপি",
       color: "hover:bg-muted",
-      onClick: () => { navigator.clipboard.writeText(shareUrl); toast.success("লিংক কপি হয়েছে!"); },
+      onClick: () => { trackShare(); navigator.clipboard.writeText(shareUrl); toast.success("লিংক কপি হয়েছে!"); },
     },
   ];
 
@@ -163,17 +199,33 @@ export default function PostDetail() {
                 </p>
               )}
 
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {new Date(post.created_at).toLocaleDateString("bn-BD", {
-                    year: "numeric", month: "long", day: "numeric",
-                  })}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Eye className="h-3.5 w-3.5" />
-                  {post.view_count} বার পড়া হয়েছে
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {new Date(post.created_at).toLocaleDateString("bn-BD", {
+                      year: "numeric", month: "long", day: "numeric",
+                    })}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-3.5 w-3.5" />
+                    {post.view_count} বার পড়া হয়েছে
+                  </span>
+                  {(post as any).share_count > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Share2 className="h-3.5 w-3.5" />
+                      {(post as any).share_count} শেয়ার
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={toggleBookmark}
+                  disabled={bookmarkLoading}
+                  className={`p-2 rounded-lg transition-colors ${isBookmarked ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary hover:bg-primary/10"}`}
+                  title={isBookmarked ? "বুকমার্ক সরান" : "বুকমার্ক করুন"}
+                >
+                  {isBookmarked ? <BookmarkCheck className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+                </button>
               </div>
             </div>
 

@@ -4,8 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CommentSection from "@/components/CommentSection";
-import { Calendar, Eye, Share2, Facebook, Twitter, Link as LinkIcon, ArrowLeft } from "lucide-react";
+import { Calendar, Eye, Share2, Facebook, Twitter, Link as LinkIcon, ArrowLeft, Bookmark, BookmarkCheck } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
 
 export default function PostDetail() {
   const { slug } = useParams<{ slug: string }>();

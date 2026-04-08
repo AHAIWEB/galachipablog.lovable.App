@@ -390,7 +390,7 @@ export default function AdminArchiveHub() {
                       <button onClick={() => { setPublishingItem(null); setPublishCatId(""); }}
                         className="px-2 py-1.5 rounded-lg bg-muted text-xs">বাতিল</button>
                     </div>
-                  )
+                  )}
                 </div>
               ))}
               {contents?.length === 0 && <p className="text-sm text-muted-foreground p-4">আর্কাইভ খালি</p>}

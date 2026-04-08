@@ -422,6 +422,11 @@ export default function AdminArchiveHub() {
               {selectedIds.size > 0 && (
                 <>
                   <div className="flex-1" />
+                  <button onClick={() => { const items = contents?.filter(c => selectedIds.has(c.id)) ?? []; refetchItems(items); }}
+                    disabled={isRefetching}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-medium disabled:opacity-50">
+                    <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} /> রি-আপডেট ({selectedIds.size})
+                  </button>
                   <button onClick={() => setShowBulkPublish(!showBulkPublish)}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium">
                     <ChevronsUp className="h-3.5 w-3.5" /> বাল্ক পাবলিশ ({selectedIds.size})
@@ -430,6 +435,15 @@ export default function AdminArchiveHub() {
               )}
             </div>
           )}
+
+          {/* Re-fetch all broken button */}
+          <div className="flex gap-2">
+            <button onClick={refetchAll} disabled={isRefetching}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 text-xs font-medium disabled:opacity-50 transition-colors">
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+              সব ভাঙ্গা কন্টেন্ট রি-আপডেট
+            </button>
+          </div>
 
           {/* Bulk publish panel */}
           {showBulkPublish && selectedIds.size > 0 && (

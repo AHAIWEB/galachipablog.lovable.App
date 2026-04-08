@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Download, Type, Image as ImageIcon, Palette, RotateCcw, Upload, Sparkles, Lock, Unlock, Share2, Send } from "lucide-react";
+import { Download, Type, Image as ImageIcon, Palette, RotateCcw, Upload, Sparkles, Lock, Unlock, Share2, Send, Sticker, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -12,6 +12,28 @@ type TextOverlay = {
   fontFamily: string;
   isFixed: boolean;
 };
+
+type LogoOverlay = {
+  src: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isFixed: boolean;
+};
+
+type StickerOverlay = {
+  emoji: string;
+  x: number;
+  y: number;
+  size: number;
+};
+
+const stickerPacks = [
+  { name: "ইমোজি", stickers: ["🌙", "⭐", "🌟", "✨", "🎉", "🎊", "🎈", "🎁", "❤️", "💚", "🇧🇩", "🕌", "🌹", "🔥", "👏", "🙏"] },
+  { name: "প্রতীক", stickers: ["☪️", "🕋", "📿", "🪔", "🏵️", "💐", "🎗️", "🏆", "🎯", "📌", "🔔", "📢", "🎤", "📰", "✅", "⚡"] },
+  { name: "পতাকা ও চিহ্ন", stickers: ["🇧🇩", "🏴", "🚩", "🏳️", "⚓", "🛡️", "🎖️", "🏅", "🥇", "🎀", "💫", "🌈", "☀️", "🌙", "💎", "👑"] },
+];
 
 const googleFonts = [
   { label: "Noto Sans Bengali", value: "'Noto Sans Bengali', sans-serif", url: "" },
@@ -147,6 +169,14 @@ export default function AdminPhotocard() {
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [customFonts, setCustomFonts] = useState<{ label: string; value: string }[]>([]);
 
+  // Logo overlay state
+  const [logoOverlay, setLogoOverlay] = useState<LogoOverlay | null>(null);
+
+  // Stickers state
+  const [stickers, setStickers] = useState<StickerOverlay[]>([]);
+  const [showStickerPanel, setShowStickerPanel] = useState(false);
+  const [selectedStickerIdx, setSelectedStickerIdx] = useState<number | null>(null);
+
   const ar = aspectRatios.find(a => a.value === aspectRatio) ?? aspectRatios[0];
   const allFonts = [...googleFonts, ...customFonts];
 
@@ -165,6 +195,36 @@ export default function AdminPhotocard() {
     const reader = new FileReader();
     reader.onload = () => { setBgImage(reader.result as string); setBgGradient(undefined); };
     reader.readAsDataURL(file);
+  };
+
+  const handleLogoUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoOverlay({
+        src: reader.result as string,
+        x: 50, y: 85,
+        width: 80, height: 40,
+        isFixed: false,
+      });
+      toast.success("লোগো যোগ হয়েছে");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const addSticker = (emoji: string) => {
+    const newSticker: StickerOverlay = { emoji, x: 50, y: 50, size: 40 };
+    setStickers(prev => [...prev, newSticker]);
+    setSelectedStickerIdx(stickers.length);
+    toast.success("স্টিকার যোগ হয়েছে");
+  };
+
+  const updateSticker = (idx: number, updates: Partial<StickerOverlay>) => {
+    setStickers(prev => prev.map((s, i) => i === idx ? { ...s, ...updates } : s));
+  };
+
+  const removeSticker = (idx: number) => {
+    setStickers(prev => prev.filter((_, i) => i !== idx));
+    setSelectedStickerIdx(null);
   };
 
   const applyTemplate = (t: Template) => {
@@ -210,7 +270,7 @@ export default function AdminPhotocard() {
       canvas.width = ar.w;
       canvas.height = ar.h;
 
-      const draw = () => {
+      const drawContent = () => {
         if (!bgImage) {
           if (bgGradient) {
             ctx.fillStyle = bgColor;
@@ -226,6 +286,8 @@ export default function AdminPhotocard() {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
           }
         }
+
+        // Draw text overlays
         overlays.forEach(o => {
           ctx.font = `bold ${o.fontSize}px ${o.fontFamily}`;
           ctx.fillStyle = o.color;
@@ -241,16 +303,45 @@ export default function AdminPhotocard() {
           });
           ctx.shadowColor = "transparent";
         });
-        resolve(canvas);
+
+        // Draw stickers
+        stickers.forEach(s => {
+          ctx.font = `${s.size}px Arial`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(s.emoji, (s.x / 100) * canvas.width, (s.y / 100) * canvas.height);
+        });
+      };
+
+      const drawLogoAndFinish = () => {
+        if (logoOverlay) {
+          const logoImg = new window.Image();
+          logoImg.crossOrigin = "anonymous";
+          logoImg.onload = () => {
+            const lx = (logoOverlay.x / 100) * canvas.width - logoOverlay.width / 2;
+            const ly = (logoOverlay.y / 100) * canvas.height - logoOverlay.height / 2;
+            ctx.drawImage(logoImg, lx, ly, logoOverlay.width, logoOverlay.height);
+            resolve(canvas);
+          };
+          logoImg.onerror = () => resolve(canvas);
+          logoImg.src = logoOverlay.src;
+        } else {
+          resolve(canvas);
+        }
       };
 
       if (bgImage) {
         const img = new window.Image();
         img.crossOrigin = "anonymous";
-        img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); draw(); };
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          drawContent();
+          drawLogoAndFinish();
+        };
         img.src = bgImage;
       } else {
-        draw();
+        drawContent();
+        drawLogoAndFinish();
       }
     });
   };
@@ -342,11 +433,12 @@ export default function AdminPhotocard() {
               background: bgImage ? `url(${bgImage}) center/cover` : (bgGradient || bgColor),
             }}
           >
+            {/* Text overlays */}
             {overlays.map((o, i) => (
               <div
-                key={i}
-                onClick={() => setSelectedIdx(i)}
-                className={`absolute cursor-pointer select-none transition-all ${selectedIdx === i ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                key={`text-${i}`}
+                onClick={() => { setSelectedIdx(i); setSelectedStickerIdx(null); }}
+                className={`absolute cursor-pointer select-none transition-all ${selectedIdx === i && selectedStickerIdx === null ? "ring-2 ring-primary ring-offset-2" : ""}`}
                 style={{
                   left: `${o.x}%`, top: `${o.y}%`, transform: "translate(-50%, -50%)",
                   fontSize: `${o.fontSize * 0.5}px`, color: o.color, fontFamily: o.fontFamily,
@@ -356,6 +448,38 @@ export default function AdminPhotocard() {
               >
                 {o.isFixed && <Lock className="h-3 w-3 absolute -top-3 -right-3 text-yellow-400" />}
                 {o.text}
+              </div>
+            ))}
+
+            {/* Logo overlay */}
+            {logoOverlay && (
+              <div
+                className={`absolute cursor-pointer select-none ${!selectedStickerIdx && selectedIdx === -1 ? "ring-2 ring-primary" : ""}`}
+                onClick={() => { setSelectedIdx(-1); setSelectedStickerIdx(null); }}
+                style={{
+                  left: `${logoOverlay.x}%`, top: `${logoOverlay.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  width: `${logoOverlay.width * 0.5}px`, height: `${logoOverlay.height * 0.5}px`,
+                }}
+              >
+                {logoOverlay.isFixed && <Lock className="h-3 w-3 absolute -top-2 -right-2 text-yellow-400" />}
+                <img src={logoOverlay.src} alt="Logo" className="w-full h-full object-contain" />
+              </div>
+            )}
+
+            {/* Sticker overlays */}
+            {stickers.map((s, i) => (
+              <div
+                key={`sticker-${i}`}
+                onClick={() => { setSelectedStickerIdx(i); setSelectedIdx(-1); }}
+                className={`absolute cursor-pointer select-none ${selectedStickerIdx === i ? "ring-2 ring-accent ring-offset-2 rounded" : ""}`}
+                style={{
+                  left: `${s.x}%`, top: `${s.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  fontSize: `${s.size * 0.5}px`,
+                }}
+              >
+                {s.emoji}
               </div>
             ))}
           </div>
@@ -392,6 +516,105 @@ export default function AdminPhotocard() {
             </div>
           </div>
 
+          {/* Logo upload */}
+          <div className="bg-card rounded-xl border border-border p-4">
+            <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2"><Upload className="h-4 w-4" /> লোগো</h3>
+            <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleLogoUpload(e.target.files[0])} className="w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:bg-muted file:text-foreground mb-2" />
+            {logoOverlay && (
+              <div className="space-y-2 mt-2">
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                  <img src={logoOverlay.src} alt="Logo" className="h-8 w-auto object-contain rounded" />
+                  <span className="text-xs text-muted-foreground flex-1">লোগো যোগ হয়েছে</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground">X (%)</label>
+                    <input type="range" min={0} max={100} value={logoOverlay.x} onChange={e => setLogoOverlay(p => p ? { ...p, x: Number(e.target.value) } : p)} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Y (%)</label>
+                    <input type="range" min={0} max={100} value={logoOverlay.y} onChange={e => setLogoOverlay(p => p ? { ...p, y: Number(e.target.value) } : p)} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">প্রস্থ (px)</label>
+                    <input type="number" min={20} max={400} value={logoOverlay.width} onChange={e => setLogoOverlay(p => p ? { ...p, width: Number(e.target.value) } : p)} className="w-full px-2 py-1 rounded-lg border border-input bg-background text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">উচ্চতা (px)</label>
+                    <input type="number" min={20} max={400} value={logoOverlay.height} onChange={e => setLogoOverlay(p => p ? { ...p, height: Number(e.target.value) } : p)} className="w-full px-2 py-1 rounded-lg border border-input bg-background text-sm" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setLogoOverlay(p => p ? { ...p, isFixed: !p.isFixed } : p)}
+                    className={`text-xs px-3 py-1.5 rounded flex items-center gap-1 ${logoOverlay.isFixed ? "bg-yellow-500/20 text-yellow-700" : "bg-muted"}`}
+                  >
+                    {logoOverlay.isFixed ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                    {logoOverlay.isFixed ? "ফিক্সড" : "ফিক্সড করুন"}
+                  </button>
+                  <button onClick={() => setLogoOverlay(null)} className="text-xs px-3 py-1.5 rounded bg-destructive/10 text-destructive">মুছুন</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Stickers */}
+          <div className="bg-card rounded-xl border border-border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-heading font-semibold text-sm flex items-center gap-2"><Sticker className="h-4 w-4" /> স্টিকার ({stickers.length})</h3>
+              <button onClick={() => setShowStickerPanel(!showStickerPanel)} className="text-xs px-2.5 py-1 rounded bg-muted hover:bg-muted/80">
+                {showStickerPanel ? "বন্ধ" : "খুলুন"}
+              </button>
+            </div>
+            {showStickerPanel && (
+              <div className="space-y-3 mb-3">
+                {stickerPacks.map(pack => (
+                  <div key={pack.name}>
+                    <p className="text-xs text-muted-foreground mb-1">{pack.name}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {pack.stickers.map((emoji, i) => (
+                        <button key={i} onClick={() => addSticker(emoji)} className="w-8 h-8 rounded hover:bg-muted/80 text-lg flex items-center justify-center transition-colors">
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {selectedStickerIdx !== null && stickers[selectedStickerIdx] && (
+              <div className="space-y-2 p-2 rounded-lg bg-muted/30">
+                <p className="text-xs font-medium">স্টিকার: {stickers[selectedStickerIdx].emoji}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground">X</label>
+                    <input type="range" min={0} max={100} value={stickers[selectedStickerIdx].x} onChange={e => updateSticker(selectedStickerIdx, { x: Number(e.target.value) })} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Y</label>
+                    <input type="range" min={0} max={100} value={stickers[selectedStickerIdx].y} onChange={e => updateSticker(selectedStickerIdx, { y: Number(e.target.value) })} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">সাইজ</label>
+                    <input type="number" min={16} max={120} value={stickers[selectedStickerIdx].size} onChange={e => updateSticker(selectedStickerIdx, { size: Number(e.target.value) })} className="w-full px-2 py-1 rounded border border-input bg-background text-sm" />
+                  </div>
+                </div>
+                <button onClick={() => removeSticker(selectedStickerIdx)} className="text-xs px-3 py-1 rounded bg-destructive/10 text-destructive flex items-center gap-1">
+                  <X className="h-3 w-3" /> মুছুন
+                </button>
+              </div>
+            )}
+            {stickers.length > 0 && (
+              <div className="flex gap-1 mt-2 flex-wrap">
+                {stickers.map((s, i) => (
+                  <button key={i} onClick={() => { setSelectedStickerIdx(i); setSelectedIdx(-1); }} className={`w-7 h-7 rounded text-sm flex items-center justify-center ${selectedStickerIdx === i ? "bg-accent text-accent-foreground ring-1 ring-accent" : "bg-muted"}`}>
+                    {s.emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Font upload */}
           <div className="bg-card rounded-xl border border-border p-4">
             <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2"><Upload className="h-4 w-4" /> কাস্টম ফন্ট আপলোড</h3>
@@ -409,12 +632,12 @@ export default function AdminPhotocard() {
             </div>
             <div className="flex gap-1 mb-3 flex-wrap">
               {overlays.map((o, i) => (
-                <button key={i} onClick={() => setSelectedIdx(i)} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${selectedIdx === i ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                <button key={i} onClick={() => { setSelectedIdx(i); setSelectedStickerIdx(null); }} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${selectedIdx === i && selectedStickerIdx === null ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   {o.isFixed && <Lock className="h-2.5 w-2.5" />} {i + 1}
                 </button>
               ))}
             </div>
-            {selected && (
+            {selected && selectedStickerIdx === null && selectedIdx >= 0 && (
               <div className="space-y-3">
                 <textarea value={selected.text} onChange={e => updateOverlay(selectedIdx, { text: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" placeholder="টেক্সট..." />
                 <div className="grid grid-cols-2 gap-3">
@@ -465,7 +688,7 @@ export default function AdminPhotocard() {
                     {selected.isFixed ? "ফিক্সড" : "ফিক্সড করুন"}
                   </button>
                   <button onClick={() => removeOverlay(selectedIdx)} disabled={overlays.length <= 1} className="text-xs px-3 py-1.5 rounded bg-destructive/10 text-destructive disabled:opacity-30">মুছুন</button>
-                  <button onClick={() => { setOverlays([{ ...defaultOverlay }]); setBgGradient(undefined); }} className="text-xs px-3 py-1.5 rounded bg-muted flex items-center gap-1"><RotateCcw className="h-3 w-3" /> রিসেট</button>
+                  <button onClick={() => { setOverlays([{ ...defaultOverlay }]); setBgGradient(undefined); setStickers([]); setLogoOverlay(null); }} className="text-xs px-3 py-1.5 rounded bg-muted flex items-center gap-1"><RotateCcw className="h-3 w-3" /> রিসেট</button>
                 </div>
               </div>
             )}

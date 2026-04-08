@@ -517,10 +517,16 @@ export default function AdminArchiveHub() {
                     </a>
                     <div className="flex-1" />
                     {item.status !== "published" && publishingItem !== item.id && (
-                      <button onClick={() => { setPublishingItem(item.id); setPublishCatId(autoMatchCategory(item.category)); }}
-                        className="p-1.5 hover:bg-green-500/10 rounded text-green-600" title="পোস্টে পাবলিশ">
-                        <Send className="h-3.5 w-3.5" />
-                      </button>
+                      <>
+                        <button onClick={() => refetchItems([item])} disabled={isRefetching}
+                          className="p-1.5 hover:bg-amber-500/10 rounded text-amber-600" title="রি-আপডেট">
+                          <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
+                        </button>
+                        <button onClick={() => { setPublishingItem(item.id); setPublishCatId(autoMatchCategory(item.category)); }}
+                          className="p-1.5 hover:bg-green-500/10 rounded text-green-600" title="পোস্টে পাবলিশ">
+                          <Send className="h-3.5 w-3.5" />
+                        </button>
+                      </>
                     )}
                     <button onClick={() => aiProcess(item)} className="p-1.5 hover:bg-primary/10 rounded text-primary" title="AI প্রসেস">
                       <Sparkles className="h-3.5 w-3.5" />

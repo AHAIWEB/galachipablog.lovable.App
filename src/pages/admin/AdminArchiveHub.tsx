@@ -374,6 +374,23 @@ export default function AdminArchiveHub() {
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  {/* Inline publish with category selector */}
+                  {publishingItem === item.id && (
+                    <div className="flex items-center gap-2 mt-2 border-t border-border pt-2 bg-muted/30 rounded p-2">
+                      <select value={publishCatId} onChange={e => setPublishCatId(e.target.value)}
+                        className="flex-1 px-2 py-1.5 rounded-lg border border-input bg-background text-xs">
+                        <option value="">ক্যাটাগরি নির্বাচন (অটো: {item.category || "নেই"})</option>
+                        {dbCategories?.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
+                      </select>
+                      <button onClick={() => publishAsPost.mutate({ item, categoryId: publishCatId })}
+                        disabled={publishAsPost.isPending}
+                        className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
+                        {publishAsPost.isPending ? "..." : "পাবলিশ"}
+                      </button>
+                      <button onClick={() => { setPublishingItem(null); setPublishCatId(""); }}
+                        className="px-2 py-1.5 rounded-lg bg-muted text-xs">বাতিল</button>
+                    </div>
+                  )
                 </div>
               ))}
               {contents?.length === 0 && <p className="text-sm text-muted-foreground p-4">আর্কাইভ খালি</p>}

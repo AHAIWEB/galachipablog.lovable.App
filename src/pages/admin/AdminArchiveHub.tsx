@@ -344,9 +344,15 @@ export default function AdminArchiveHub() {
                 placeholder="প্রতি লাইনে একটি URL দিন..."
                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm mb-3 resize-y" />
             )}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <input value={scrapeCategory} onChange={e => setScrapeCategory(e.target.value)} placeholder="ক্যাটাগরি (ঐচ্ছিক)"
-                className="px-3 py-2 rounded-lg border border-input bg-background text-sm flex-1" />
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm flex-1 min-w-[150px]" />
+              <input type="number" value={maxPages} onChange={e => setMaxPages(Number(e.target.value))} min={1} max={1000}
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm w-24" title="সর্বোচ্চ পেজ" />
+              <label className="flex items-center gap-1.5 text-xs">
+                <input type="checkbox" checked={discoverLinks} onChange={e => setDiscoverLinks(e.target.checked)} />
+                লিংক ডিসকভার (৫০০+)
+              </label>
               <button onClick={handleScrape} disabled={isScraping}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
                 {isScraping ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}

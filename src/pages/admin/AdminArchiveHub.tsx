@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Archive, Globe, Plus, Trash2, RefreshCw, Play, Pause, Sparkles,
-  ExternalLink, Clock, FolderOpen, Search, Image, Tag, Layers,
+  ExternalLink, Clock, FolderOpen, Search, Image, Tag, Layers, Send,
 } from "lucide-react";
 
 type ArchiveContent = {
@@ -127,6 +127,29 @@ export default function AdminArchiveHub() {
       toast.error(e.message || "AI প্রসেসিং ব্যর্থ");
     }
   };
+
+  const publishAsPost = useMutation({
+    mutationFn: async (item: ArchiveContent) => {
+      const slug = item.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\u0980-\u09FF\w-]/g, "").slice(0, 120) || `archive-${Date.now()}`;
+      const { error } = await supabase.from("posts").insert({
+        title: item.title,
+        slug,
+        content: item.content || "",
+        excerpt: item.excerpt || item.ai_summary || "",
+        featured_image: item.featured_image || "",
+        status: "published" as const,
+        is_featured: false,
+      });
+      if (error) throw error;
+      await supabase.from("archived_contents").update({ status: "published" }).eq("id", item.id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["archive-contents"] });
+      qc.invalidateQueries({ queryKey: ["admin-posts"] });
+      toast.success("পোস্ট হিসেবে পাবলিশ হয়েছে!");
+    },
+    onError: (e: any) => toast.error(e.message || "পাবলিশ ব্যর্থ"),
+  });
 
   const deleteContent = useMutation({
     mutationFn: async (id: string) => {
@@ -317,6 +340,12 @@ export default function AdminArchiveHub() {
                       <ExternalLink className="h-3 w-3" /> সোর্স
                     </a>
                     <div className="flex-1" />
+                    {item.status !== "published" && (
+                      <button onClick={() => { if (confirm("পোস্ট হিসেবে পাবলিশ করবেন?")) publishAsPost.mutate(item); }}
+                        className="p-1.5 hover:bg-green-500/10 rounded text-green-600" title="পোস্টে পাবলিশ">
+                        <Send className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button onClick={() => aiProcess(item)} className="p-1.5 hover:bg-primary/10 rounded text-primary" title="AI প্রসেস">
                       <Sparkles className="h-3.5 w-3.5" />
                     </button>

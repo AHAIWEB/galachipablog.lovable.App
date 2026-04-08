@@ -75,7 +75,22 @@ export default function AdminArchiveHub() {
     },
   });
 
-  const categories = [...new Set((contents || []).map(c => c.category).filter(Boolean))] as string[];
+  const { data: dbCategories } = useQuery({
+    queryKey: ["db-categories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("categories").select("id, name, type").is("deleted_at", null).order("name");
+      return data ?? [];
+    },
+  });
+
+  const archiveCategories = [...new Set((contents || []).map(c => c.category).filter(Boolean))] as string[];
+
+  // Auto-match archive category to DB category
+  const autoMatchCategory = (archiveCat: string | null): string => {
+    if (!archiveCat || !dbCategories?.length) return "";
+    const match = dbCategories.find(c => c.name.toLowerCase() === archiveCat.toLowerCase());
+    return match?.id || "";
+  };
 
   // Stats
   const total = contents?.length ?? 0;

@@ -146,14 +146,16 @@ export default function AdminArchiveHub() {
   };
 
   const publishAsPost = useMutation({
-    mutationFn: async (item: ArchiveContent) => {
+    mutationFn: async ({ item, categoryId }: { item: ArchiveContent; categoryId: string }) => {
       const slug = item.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\u0980-\u09FF\w-]/g, "").slice(0, 120) || `archive-${Date.now()}`;
+      const resolvedCatId = categoryId || autoMatchCategory(item.category) || null;
       const { error } = await supabase.from("posts").insert({
         title: item.title,
         slug,
         content: item.content || "",
         excerpt: item.excerpt || item.ai_summary || "",
         featured_image: item.featured_image || "",
+        category_id: resolvedCatId,
         status: "published" as const,
         is_featured: false,
       });
@@ -163,6 +165,8 @@ export default function AdminArchiveHub() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["archive-contents"] });
       qc.invalidateQueries({ queryKey: ["admin-posts"] });
+      setPublishingItem(null);
+      setPublishCatId("");
       toast.success("পোস্ট হিসেবে পাবলিশ হয়েছে!");
     },
     onError: (e: any) => toast.error(e.message || "পাবলিশ ব্যর্থ"),

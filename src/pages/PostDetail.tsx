@@ -64,26 +64,57 @@ export default function PostDetail() {
     enabled: !!post?.category_id,
   });
 
+  // Check bookmark status
+  useEffect(() => {
+    if (!user || !post?.id) { setIsBookmarked(false); return; }
+    supabase.from("bookmarks").select("id").eq("user_id", user.id).eq("post_id", post.id).maybeSingle()
+      .then(({ data }) => setIsBookmarked(!!data));
+  }, [user, post?.id]);
+
+  const toggleBookmark = async () => {
+    if (!user) { toast.error("বুকমার্ক করতে লগইন করুন"); return; }
+    if (!post?.id || bookmarkLoading) return;
+    setBookmarkLoading(true);
+    try {
+      if (isBookmarked) {
+        await supabase.from("bookmarks").delete().eq("user_id", user.id).eq("post_id", post.id);
+        setIsBookmarked(false);
+        toast.success("বুকমার্ক সরানো হয়েছে");
+      } else {
+        await supabase.from("bookmarks").insert({ user_id: user.id, post_id: post.id });
+        setIsBookmarked(true);
+        toast.success("বুকমার্ক করা হয়েছে!");
+      }
+    } catch { toast.error("সমস্যা হয়েছে"); }
+    setBookmarkLoading(false);
+  };
+
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  const trackShare = async () => {
+    if (post?.id) {
+      await supabase.rpc("increment_share_count", { p_post_id: post.id });
+    }
+  };
 
   const shareActions = [
     {
       icon: Facebook,
       label: "ফেসবুক",
       color: "hover:bg-blue-500/10 hover:text-blue-600",
-      onClick: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank"),
+      onClick: () => { trackShare(); window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank"); },
     },
     {
       icon: Twitter,
       label: "টুইটার",
       color: "hover:bg-sky-500/10 hover:text-sky-500",
-      onClick: () => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(post?.title || "")}`, "_blank"),
+      onClick: () => { trackShare(); window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(post?.title || "")}`, "_blank"); },
     },
     {
       icon: LinkIcon,
       label: "লিংক কপি",
       color: "hover:bg-muted",
-      onClick: () => { navigator.clipboard.writeText(shareUrl); toast.success("লিংক কপি হয়েছে!"); },
+      onClick: () => { trackShare(); navigator.clipboard.writeText(shareUrl); toast.success("লিংক কপি হয়েছে!"); },
     },
   ];
 

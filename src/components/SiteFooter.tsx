@@ -27,7 +27,7 @@ export default function SiteFooter() {
             <h4 className="font-heading font-bold text-sm mb-3">দ্রুত লিংক</h4>
             <ul className="space-y-2 text-xs opacity-70">
               <li><Link to="/" className="hover:opacity-100 hover:underline transition-all">হোম পেজ</Link></li>
-              <li><a href="#" className="hover:opacity-100 hover:underline transition-all">আমাদের সম্পর্কে</a></li>
+              <li><Link to="/about" className="hover:opacity-100 hover:underline transition-all">আমাদের সম্পর্কে</Link></li>
               <li><a href="#" className="hover:opacity-100 hover:underline transition-all">বিজ্ঞাপন দিন</a></li>
               <li><Link to="/auth" className="hover:opacity-100 hover:underline transition-all">লগইন</Link></li>
             </ul>
@@ -35,8 +35,8 @@ export default function SiteFooter() {
           <div>
             <h4 className="font-heading font-bold text-sm mb-3">আইনি</h4>
             <ul className="space-y-2 text-xs opacity-70">
-              <li><a href="#" className="hover:opacity-100 hover:underline transition-all">গোপনীয়তা নীতি</a></li>
-              <li><a href="#" className="hover:opacity-100 hover:underline transition-all">শর্তাবলী</a></li>
+              <li><Link to="/privacy" className="hover:opacity-100 hover:underline transition-all">গোপনীয়তা নীতি</Link></li>
+              <li><Link to="/terms" className="hover:opacity-100 hover:underline transition-all">শর্তাবলী</Link></li>
               <li><a href="#" className="hover:opacity-100 hover:underline transition-all">কুকি নীতি</a></li>
               <li><a href="#" className="hover:opacity-100 hover:underline transition-all">ডিসক্লেইমার</a></li>
             </ul>

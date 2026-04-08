@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, ChevronDown, Menu, X, User } from "lucide-react";
+import { Search, ChevronDown, Menu, X, User, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -134,7 +135,7 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
 }
 
 export default function SiteHeader() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [openMenu, setOpenMenu] = useState<MenuType>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -164,13 +165,22 @@ export default function SiteHeader() {
             <button className="md:hidden p-2" onClick={() => setSearchOpen(true)}>
               <Search className="h-5 w-5" />
             </button>
-            <a
-              href={user ? "/profile" : "/auth"}
+            {user && isAdmin && (
+              <Link
+                to="/admin"
+                className="p-2 rounded-full hover:bg-header-foreground/10 transition-colors"
+                title="এডমিন প্যানেল"
+              >
+                <Shield className="h-5 w-5" />
+              </Link>
+            )}
+            <Link
+              to={user ? "/profile" : "/auth"}
               className="p-2 rounded-full hover:bg-header-foreground/10 transition-colors"
               title={user ? "প্রোফাইল" : "লগইন"}
             >
               <User className="h-5 w-5" />
-            </a>
+            </Link>
           </div>
         </div>
       </div>
@@ -178,7 +188,7 @@ export default function SiteHeader() {
       <nav className="bg-card border-b border-border shadow-sm">
         <div className="container mx-auto px-4">
           <div className={`${mobileOpen ? "flex" : "hidden"} md:flex items-center gap-1 flex-col md:flex-row py-2 md:py-0`}>
-            {(["news", "blog", "directory"] as const).map(type => (
+           {(["news", "blog", "directory"] as const).map(type => (
               <button
                 key={type}
                 onClick={() => toggleMenu(type)}
@@ -192,6 +202,7 @@ export default function SiteHeader() {
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openMenu === type ? "rotate-180" : ""}`} />
               </button>
             ))}
+            <Link to="/about" className="px-4 py-2.5 text-sm font-heading font-semibold text-foreground hover:bg-muted rounded-lg md:rounded-none transition-colors w-full md:w-auto text-left block md:inline">আমাদের সম্পর্কে</Link>
           </div>
         </div>
       </nav>

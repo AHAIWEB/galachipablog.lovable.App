@@ -40,6 +40,7 @@ const App = () => (
             <Route path="/category/:slug" element={<CategoryPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="posts" element={<AdminPosts />} />

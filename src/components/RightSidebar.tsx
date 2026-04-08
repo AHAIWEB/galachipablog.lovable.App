@@ -114,6 +114,21 @@ export default function RightSidebar() {
           </div>
         )}
       </div>
+
+      {/* Digital Business Card CTA */}
+      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+        <div className="p-4 text-center space-y-2">
+          <CreditCard className="h-8 w-8 mx-auto text-primary" />
+          <h3 className="font-heading font-bold text-sm">🗂 ডিজিটাল বিজনেস কার্ড</h3>
+          <p className="text-xs text-muted-foreground">আপনার বিজনেস কার্ড তৈরি করুন বিনামূল্যে!</p>
+          <Link
+            to="/profile"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+          >
+            <CreditCard className="h-3.5 w-3.5" /> কার্ড তৈরি করুন
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

@@ -254,9 +254,9 @@ export default function AdminArchiveHub() {
           </div>
           <div className="bg-card rounded-xl border border-border p-4">
             <h3 className="font-heading font-semibold text-sm mb-2">ক্যাটাগরি অনুযায়ী</h3>
-            {categories.length > 0 ? (
+            {archiveCategories.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {categories.map(cat => {
+                {archiveCategories.map(cat => {
                   const count = contents?.filter(c => c.category === cat).length ?? 0;
                   return (
                     <button key={cat} onClick={() => { setFilterCat(cat); setTab("archive"); }}
@@ -320,7 +320,7 @@ export default function AdminArchiveHub() {
           {/* Category filter */}
           <div className="flex gap-2 flex-wrap items-center">
             <button onClick={() => setFilterCat("")} className={`px-2 py-1 rounded text-xs ${!filterCat ? "bg-primary text-primary-foreground" : "bg-muted"}`}>সব</button>
-            {categories.map(c => (
+            {archiveCategories.map(c => (
               <button key={c} onClick={() => setFilterCat(c)} className={`px-2 py-1 rounded text-xs ${filterCat === c ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{c}</button>
             ))}
           </div>
@@ -361,8 +361,8 @@ export default function AdminArchiveHub() {
                       <ExternalLink className="h-3 w-3" /> সোর্স
                     </a>
                     <div className="flex-1" />
-                    {item.status !== "published" && (
-                      <button onClick={() => { if (confirm("পোস্ট হিসেবে পাবলিশ করবেন?")) publishAsPost.mutate(item); }}
+                    {item.status !== "published" && publishingItem !== item.id && (
+                      <button onClick={() => { setPublishingItem(item.id); setPublishCatId(autoMatchCategory(item.category)); }}
                         className="p-1.5 hover:bg-green-500/10 rounded text-green-600" title="পোস্টে পাবলিশ">
                         <Send className="h-3.5 w-3.5" />
                       </button>

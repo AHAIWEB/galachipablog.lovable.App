@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import CommentSection from "@/components/CommentSection";
 import { Calendar, Eye, Share2, Facebook, Twitter, Link as LinkIcon, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -202,6 +203,9 @@ export default function PostDetail() {
                 </div>
               </div>
             </div>
+
+            {/* Comments */}
+            <CommentSection postId={post.id} />
 
             {/* Related posts */}
             {relatedPosts.length > 0 && (

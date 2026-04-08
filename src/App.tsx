@@ -59,6 +59,7 @@ const App = () => (
               <Route path="webp" element={<AdminWebP />} />
               <Route path="quotecard" element={<AdminQuoteCard />} />
               <Route path="security" element={<AdminSecurity />} />
+              <Route path="ads" element={<AdminAds />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

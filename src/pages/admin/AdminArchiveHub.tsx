@@ -48,6 +48,8 @@ export default function AdminArchiveHub() {
   const [bulkUrls, setBulkUrls] = useState("");
   const [scrapeCategory, setScrapeCategory] = useState("");
   const [scrapeMode, setScrapeMode] = useState<"single" | "bulk">("single");
+  const [discoverLinks, setDiscoverLinks] = useState(false);
+  const [maxPages, setMaxPages] = useState(500);
   const [isScraping, setIsScraping] = useState(false);
   const [filterCat, setFilterCat] = useState("");
   const [publishingItem, setPublishingItem] = useState<string | null>(null);
@@ -126,11 +128,12 @@ export default function AdminArchiveHub() {
     setIsScraping(true);
     try {
       const { data, error } = await supabase.functions.invoke("archive-scraper", {
-        body: { urls, category: scrapeCategory || undefined },
+        body: { urls, category: scrapeCategory || undefined, discover_links: discoverLinks, max_pages: maxPages },
       });
       if (error) throw error;
-      const successCount = data?.results?.filter((r: any) => r.success).length ?? 0;
-      toast.success(`${successCount}/${urls.length} URL সফলভাবে স্ক্র্যাপ হয়েছে`);
+      const successCount = data?.successCount ?? data?.results?.filter((r: any) => r.success).length ?? 0;
+      const totalProcessed = data?.total ?? urls.length;
+      toast.success(`${successCount}/${totalProcessed} URL সফলভাবে স্ক্র্যাপ হয়েছে`);
       qc.invalidateQueries({ queryKey: ["archive-contents"] });
     } catch (e: any) {
       toast.error(e.message || "স্ক্র্যাপিং ব্যর্থ");

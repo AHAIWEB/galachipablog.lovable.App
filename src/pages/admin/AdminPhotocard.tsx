@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
-import { Download, Type, Image as ImageIcon, Palette, RotateCcw, Upload, Sparkles } from "lucide-react";
+import { Download, Type, Image as ImageIcon, Palette, RotateCcw, Upload, Sparkles, Lock, Unlock, Share2, Send } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 type TextOverlay = {
   text: string;
@@ -8,97 +10,117 @@ type TextOverlay = {
   fontSize: number;
   color: string;
   fontFamily: string;
+  isFixed: boolean;
 };
 
-const fonts = [
-  { label: "Noto Sans Bengali", value: "'Noto Sans Bengali', sans-serif" },
-  { label: "Hind Siliguri", value: "'Hind Siliguri', sans-serif" },
-  { label: "Arial", value: "Arial, sans-serif" },
+const googleFonts = [
+  { label: "Noto Sans Bengali", value: "'Noto Sans Bengali', sans-serif", url: "" },
+  { label: "Hind Siliguri", value: "'Hind Siliguri', sans-serif", url: "" },
+  { label: "Anek Bangla", value: "'Anek Bangla', sans-serif", url: "https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@400;500;600;700&display=swap" },
+  { label: "Galada", value: "'Galada', cursive", url: "https://fonts.googleapis.com/css2?family=Galada&display=swap" },
+  { label: "Tiro Bangla", value: "'Tiro Bangla', serif", url: "https://fonts.googleapis.com/css2?family=Tiro+Bangla&display=swap" },
+  { label: "Baloo Da 2", value: "'Baloo Da 2', sans-serif", url: "https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@400;500;600;700&display=swap" },
+  { label: "Mina", value: "'Mina', sans-serif", url: "https://fonts.googleapis.com/css2?family=Mina:wght@400;700&display=swap" },
+  { label: "Arial", value: "Arial, sans-serif", url: "" },
+  { label: "Impact", value: "Impact, sans-serif", url: "" },
+  { label: "Georgia", value: "Georgia, serif", url: "" },
 ];
+
+const loadedFonts = new Set<string>();
+function loadGoogleFont(font: typeof googleFonts[0]) {
+  if (!font.url || loadedFonts.has(font.url)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = font.url;
+  document.head.appendChild(link);
+  loadedFonts.add(font.url);
+}
 
 const defaultOverlay: TextOverlay = {
   text: "আপনার টেক্সট লিখুন",
-  x: 50,
-  y: 50,
-  fontSize: 32,
+  x: 50, y: 50, fontSize: 32,
   color: "#ffffff",
   fontFamily: "'Noto Sans Bengali', sans-serif",
+  isFixed: false,
 };
 
 type Template = {
-  id: string;
-  name: string;
-  bgColor: string;
-  bgGradient?: string;
-  overlays: TextOverlay[];
-  aspectRatio: string;
+  id: string; name: string; bgColor: string;
+  bgGradient?: string; overlays: TextOverlay[]; aspectRatio: string;
 };
 
 const builtInTemplates: Template[] = [
   {
-    id: "eid-mubarak",
-    name: "🌙 ঈদ মোবারক",
-    bgColor: "#0d4a2e",
+    id: "eid", name: "🌙 ঈদ মোবারক", bgColor: "#0d4a2e",
     bgGradient: "linear-gradient(135deg, #0d4a2e 0%, #1a6b42 50%, #0d4a2e 100%)",
     overlays: [
-      { text: "ঈদ মোবারক", x: 50, y: 35, fontSize: 48, color: "#f0c040", fontFamily: "'Noto Sans Bengali', sans-serif" },
-      { text: "সকলকে জানাই ঈদের শুভেচ্ছা", x: 50, y: 55, fontSize: 22, color: "#ffffff", fontFamily: "'Hind Siliguri', sans-serif" },
+      { text: "ঈদ মোবারক", x: 50, y: 35, fontSize: 48, color: "#f0c040", fontFamily: "'Noto Sans Bengali', sans-serif", isFixed: false },
+      { text: "সকলকে জানাই শুভেচ্ছা", x: 50, y: 55, fontSize: 22, color: "#ffffff", fontFamily: "'Hind Siliguri', sans-serif", isFixed: false },
     ],
     aspectRatio: "4/3",
   },
   {
-    id: "birthday",
-    name: "🎂 জন্মদিন",
-    bgColor: "#4a1942",
+    id: "birthday", name: "🎂 জন্মদিন", bgColor: "#4a1942",
     bgGradient: "linear-gradient(135deg, #4a1942 0%, #7b2d8e 50%, #4a1942 100%)",
     overlays: [
-      { text: "শুভ জন্মদিন!", x: 50, y: 30, fontSize: 44, color: "#ffcc00", fontFamily: "'Noto Sans Bengali', sans-serif" },
-      { text: "নাম লিখুন", x: 50, y: 55, fontSize: 28, color: "#ffffff", fontFamily: "'Hind Siliguri', sans-serif" },
-      { text: "🎉🎈🎁", x: 50, y: 75, fontSize: 36, color: "#ffffff", fontFamily: "Arial, sans-serif" },
+      { text: "শুভ জন্মদিন!", x: 50, y: 30, fontSize: 44, color: "#ffcc00", fontFamily: "'Noto Sans Bengali', sans-serif", isFixed: false },
+      { text: "নাম লিখুন", x: 50, y: 55, fontSize: 28, color: "#ffffff", fontFamily: "'Hind Siliguri', sans-serif", isFixed: false },
+      { text: "🎉🎈🎁", x: 50, y: 75, fontSize: 36, color: "#ffffff", fontFamily: "Arial, sans-serif", isFixed: true },
     ],
     aspectRatio: "1/1",
   },
   {
-    id: "victory-day",
-    name: "🇧🇩 বিজয় দিবস",
-    bgColor: "#006a4e",
+    id: "victory", name: "🇧🇩 বিজয় দিবস", bgColor: "#006a4e",
     bgGradient: "linear-gradient(180deg, #006a4e 0%, #004d38 100%)",
     overlays: [
-      { text: "বিজয় দিবস", x: 50, y: 30, fontSize: 48, color: "#f42a41", fontFamily: "'Noto Sans Bengali', sans-serif" },
-      { text: "১৬ ডিসেম্বর", x: 50, y: 55, fontSize: 28, color: "#ffffff", fontFamily: "'Hind Siliguri', sans-serif" },
-      { text: "জয় বাংলা 🇧🇩", x: 50, y: 75, fontSize: 24, color: "#f0c040", fontFamily: "'Noto Sans Bengali', sans-serif" },
+      { text: "বিজয় দিবস", x: 50, y: 30, fontSize: 48, color: "#f42a41", fontFamily: "'Noto Sans Bengali', sans-serif", isFixed: false },
+      { text: "১৬ ডিসেম্বর", x: 50, y: 55, fontSize: 28, color: "#ffffff", fontFamily: "'Hind Siliguri', sans-serif", isFixed: false },
+      { text: "জয় বাংলা 🇧🇩", x: 50, y: 75, fontSize: 24, color: "#f0c040", fontFamily: "'Noto Sans Bengali', sans-serif", isFixed: true },
     ],
     aspectRatio: "16/9",
   },
   {
-    id: "social-post",
-    name: "📱 সোশ্যাল পোস্ট",
-    bgColor: "#1a365d",
+    id: "social", name: "📱 সোশ্যাল পোস্ট", bgColor: "#1a365d",
     bgGradient: "linear-gradient(135deg, #1a365d 0%, #2a4a7f 50%, #1a365d 100%)",
     overlays: [
-      { text: "আজকের খবর", x: 50, y: 25, fontSize: 38, color: "#60a5fa", fontFamily: "'Noto Sans Bengali', sans-serif" },
-      { text: "বিস্তারিত লিখুন এখানে", x: 50, y: 55, fontSize: 20, color: "#e2e8f0", fontFamily: "'Hind Siliguri', sans-serif" },
-      { text: "গলাচিপা ব্লগ", x: 50, y: 85, fontSize: 16, color: "#94a3b8", fontFamily: "'Hind Siliguri', sans-serif" },
+      { text: "আজকের খবর", x: 50, y: 25, fontSize: 38, color: "#60a5fa", fontFamily: "'Noto Sans Bengali', sans-serif", isFixed: false },
+      { text: "বিস্তারিত লিখুন", x: 50, y: 55, fontSize: 20, color: "#e2e8f0", fontFamily: "'Hind Siliguri', sans-serif", isFixed: false },
+      { text: "গলাচিপা ব্লগ", x: 50, y: 85, fontSize: 16, color: "#94a3b8", fontFamily: "'Hind Siliguri', sans-serif", isFixed: true },
     ],
     aspectRatio: "1/1",
   },
   {
-    id: "invitation",
-    name: "💌 দাওয়াত",
-    bgColor: "#7f1d1d",
+    id: "invite", name: "💌 দাওয়াত", bgColor: "#7f1d1d",
     bgGradient: "linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #7f1d1d 100%)",
     overlays: [
-      { text: "দাওয়াত", x: 50, y: 25, fontSize: 44, color: "#fbbf24", fontFamily: "'Noto Sans Bengali', sans-serif" },
-      { text: "অনুষ্ঠানের নাম", x: 50, y: 45, fontSize: 26, color: "#ffffff", fontFamily: "'Hind Siliguri', sans-serif" },
-      { text: "তারিখ ও সময়", x: 50, y: 65, fontSize: 20, color: "#fde68a", fontFamily: "'Hind Siliguri', sans-serif" },
-      { text: "স্থান: আপনার ঠিকানা", x: 50, y: 80, fontSize: 16, color: "#fecaca", fontFamily: "'Hind Siliguri', sans-serif" },
+      { text: "দাওয়াত", x: 50, y: 25, fontSize: 44, color: "#fbbf24", fontFamily: "'Noto Sans Bengali', sans-serif", isFixed: false },
+      { text: "অনুষ্ঠানের নাম", x: 50, y: 45, fontSize: 26, color: "#ffffff", fontFamily: "'Hind Siliguri', sans-serif", isFixed: false },
+      { text: "তারিখ ও সময়", x: 50, y: 65, fontSize: 20, color: "#fde68a", fontFamily: "'Hind Siliguri', sans-serif", isFixed: false },
     ],
     aspectRatio: "4/5",
   },
   {
-    id: "blank",
-    name: "⬜ খালি ক্যানভাস",
-    bgColor: "#1e3a5f",
+    id: "quote", name: "💬 উক্তি কার্ড", bgColor: "#0f172a",
+    bgGradient: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+    overlays: [
+      { text: "❝", x: 15, y: 20, fontSize: 64, color: "#3b82f6", fontFamily: "Georgia, serif", isFixed: true },
+      { text: "এখানে আপনার উক্তি লিখুন", x: 50, y: 45, fontSize: 24, color: "#f1f5f9", fontFamily: "'Noto Sans Bengali', sans-serif", isFixed: false },
+      { text: "— লেখক", x: 70, y: 75, fontSize: 18, color: "#64748b", fontFamily: "'Hind Siliguri', sans-serif", isFixed: false },
+    ],
+    aspectRatio: "1/1",
+  },
+  {
+    id: "news-break", name: "🔴 ব্রেকিং নিউজ", bgColor: "#991b1b",
+    bgGradient: "linear-gradient(to right, #991b1b, #b91c1c, #991b1b)",
+    overlays: [
+      { text: "ব্রেকিং নিউজ", x: 50, y: 20, fontSize: 40, color: "#ffffff", fontFamily: "Impact, sans-serif", isFixed: true },
+      { text: "খবরের শিরোনাম লিখুন", x: 50, y: 50, fontSize: 28, color: "#fef08a", fontFamily: "'Noto Sans Bengali', sans-serif", isFixed: false },
+      { text: "গলাচিপা ব্লগ", x: 50, y: 85, fontSize: 14, color: "#fca5a5", fontFamily: "'Hind Siliguri', sans-serif", isFixed: true },
+    ],
+    aspectRatio: "16/9",
+  },
+  {
+    id: "blank", name: "⬜ খালি ক্যানভাস", bgColor: "#1e3a5f",
     overlays: [{ ...defaultOverlay }],
     aspectRatio: "4/3",
   },
@@ -123,8 +145,21 @@ export default function AdminPhotocard() {
   const [customTemplates, setCustomTemplates] = useState<Template[]>([]);
   const [templateName, setTemplateName] = useState("");
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [customFonts, setCustomFonts] = useState<{ label: string; value: string }[]>([]);
 
   const ar = aspectRatios.find(a => a.value === aspectRatio) ?? aspectRatios[0];
+  const allFonts = [...googleFonts, ...customFonts];
+
+  const handleFontUpload = (file: File) => {
+    const fontName = file.name.replace(/\.(ttf|woff|woff2|otf)$/i, "");
+    const url = URL.createObjectURL(file);
+    const fontFace = new FontFace(fontName, `url(${url})`);
+    fontFace.load().then(loaded => {
+      document.fonts.add(loaded);
+      setCustomFonts(prev => [...prev, { label: `📁 ${fontName}`, value: `'${fontName}', sans-serif` }]);
+      toast.success(`ফন্ট "${fontName}" যোগ হয়েছে`);
+    }).catch(() => toast.error("ফন্ট লোড ব্যর্থ"));
+  };
 
   const loadBgImage = (file: File) => {
     const reader = new FileReader();
@@ -144,16 +179,13 @@ export default function AdminPhotocard() {
   const saveAsTemplate = () => {
     if (!templateName.trim()) return;
     const t: Template = {
-      id: `custom_${Date.now()}`,
-      name: `🎨 ${templateName}`,
-      bgColor,
-      bgGradient,
-      overlays: overlays.map(o => ({ ...o })),
-      aspectRatio,
+      id: `custom_${Date.now()}`, name: `🎨 ${templateName}`,
+      bgColor, bgGradient, overlays: overlays.map(o => ({ ...o })), aspectRatio,
     };
     setCustomTemplates(prev => [...prev, t]);
     setShowSaveTemplate(false);
     setTemplateName("");
+    toast.success("টেমপ্লেট সেভ হয়েছে");
   };
 
   const updateOverlay = (idx: number, updates: Partial<TextOverlay>) => {
@@ -181,7 +213,6 @@ export default function AdminPhotocard() {
       const draw = () => {
         if (!bgImage) {
           if (bgGradient) {
-            // Parse gradient - simple linear gradient rendering
             ctx.fillStyle = bgColor;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
@@ -205,8 +236,7 @@ export default function AdminPhotocard() {
           ctx.shadowOffsetY = 2;
           const x = (o.x / 100) * canvas.width;
           const y = (o.y / 100) * canvas.height;
-          const lines = o.text.split("\n");
-          lines.forEach((line, i) => {
+          o.text.split("\n").forEach((line, i) => {
             ctx.fillText(line, x, y + i * (o.fontSize * 1.3));
           });
           ctx.shadowColor = "transparent";
@@ -233,6 +263,38 @@ export default function AdminPhotocard() {
     link.click();
   };
 
+  const postToSite = async () => {
+    const canvas = await renderCanvas();
+    const dataUrl = canvas.toDataURL("image/png");
+    toast.info("সাইটে পোস্ট করা হচ্ছে...");
+    const slug = `photocard-${Date.now()}`;
+    const { error } = await supabase.from("posts").insert({
+      title: `ফটোকার্ড - ${new Date().toLocaleDateString("bn-BD")}`,
+      slug,
+      content: `<img src="${dataUrl}" alt="Photocard" style="max-width:100%" />`,
+      featured_image: dataUrl,
+      status: "published" as const,
+    });
+    if (error) toast.error("পোস্ট ব্যর্থ: " + error.message);
+    else toast.success("সাইটে পোস্ট হয়েছে!");
+  };
+
+  const shareToSocial = async () => {
+    const canvas = await renderCanvas();
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      if (navigator.share) {
+        const file = new File([blob], "photocard.png", { type: "image/png" });
+        try {
+          await navigator.share({ files: [file], title: "ফটোকার্ড" });
+        } catch { toast.info("শেয়ার বাতিল হয়েছে"); }
+      } else {
+        toast.info("ব্রাউজারে শেয়ার সাপোর্ট নেই, ডাউনলোড করুন");
+        downloadImage();
+      }
+    });
+  };
+
   const selected = overlays[selectedIdx];
   const allTemplates = [...builtInTemplates, ...customTemplates];
 
@@ -243,9 +305,9 @@ export default function AdminPhotocard() {
       {/* Templates */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-medium text-muted-foreground">📐 টেমপ্লেট বাছুন</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">📐 টেমপ্লেট</h3>
           <button onClick={() => setShowSaveTemplate(!showSaveTemplate)} className="text-xs px-2.5 py-1 rounded bg-muted hover:bg-muted/80 flex items-center gap-1">
-            <Sparkles className="h-3 w-3" /> টেমপ্লেট সেভ
+            <Sparkles className="h-3 w-3" /> সেভ
           </button>
         </div>
         {showSaveTemplate && (
@@ -254,21 +316,20 @@ export default function AdminPhotocard() {
             <button onClick={saveAsTemplate} className="px-3 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground">সেভ</button>
           </div>
         )}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
           {allTemplates.map(t => (
-            <button key={t.id} onClick={() => applyTemplate(t)} className="p-2 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-colors text-center">
+            <button key={t.id} onClick={() => applyTemplate(t)} className="p-1.5 rounded-lg border border-border hover:border-primary/50 hover:bg-muted/50 transition-colors text-center">
               <div className="w-full aspect-video rounded mb-1" style={{ background: t.bgGradient || t.bgColor }} />
-              <span className="text-xs truncate block">{t.name}</span>
+              <span className="text-[10px] truncate block">{t.name}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-5">
         {/* Preview */}
         <div className="space-y-3">
-          {/* Aspect ratio selector */}
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
             {aspectRatios.map(a => (
               <button key={a.value} onClick={() => setAspectRatio(a.value)} className={`text-xs px-2.5 py-1 rounded ${aspectRatio === a.value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{a.label}</button>
             ))}
@@ -293,14 +354,25 @@ export default function AdminPhotocard() {
                   whiteSpace: "pre-line", textAlign: "center",
                 }}
               >
+                {o.isFixed && <Lock className="h-3 w-3 absolute -top-3 -right-3 text-yellow-400" />}
                 {o.text}
               </div>
             ))}
           </div>
           <canvas ref={canvasRef} className="hidden" />
-          <button onClick={downloadImage} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm">
-            <Download className="h-4 w-4" /> PNG ডাউনলোড
-          </button>
+
+          {/* Action buttons */}
+          <div className="grid grid-cols-3 gap-2">
+            <button onClick={downloadImage} className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-xs">
+              <Download className="h-3.5 w-3.5" /> ডাউনলোড
+            </button>
+            <button onClick={postToSite} className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-secondary text-secondary-foreground font-medium text-xs">
+              <Send className="h-3.5 w-3.5" /> সাইটে পোস্ট
+            </button>
+            <button onClick={shareToSocial} className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-accent text-accent-foreground font-medium text-xs">
+              <Share2 className="h-3.5 w-3.5" /> শেয়ার
+            </button>
+          </div>
         </div>
 
         {/* Controls */}
@@ -315,36 +387,47 @@ export default function AdminPhotocard() {
               </label>
               <span className="text-muted-foreground text-xs">বা</span>
               <label className="flex-1">
-                <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && loadBgImage(e.target.files[0])} className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-muted file:text-foreground" />
+                <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && loadBgImage(e.target.files[0])} className="w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:bg-muted file:text-foreground" />
               </label>
             </div>
+          </div>
+
+          {/* Font upload */}
+          <div className="bg-card rounded-xl border border-border p-4">
+            <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2"><Upload className="h-4 w-4" /> কাস্টম ফন্ট আপলোড</h3>
+            <input type="file" accept=".ttf,.woff,.woff2,.otf" onChange={e => e.target.files?.[0] && handleFontUpload(e.target.files[0])} className="w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:bg-muted file:text-foreground" />
+            {customFonts.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-2">{customFonts.length}টি কাস্টম ফন্ট যোগ হয়েছে</p>
+            )}
           </div>
 
           {/* Text overlays */}
           <div className="bg-card rounded-xl border border-border p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-heading font-semibold text-sm flex items-center gap-2"><Type className="h-4 w-4" /> টেক্সট লেয়ার ({overlays.length})</h3>
+              <h3 className="font-heading font-semibold text-sm flex items-center gap-2"><Type className="h-4 w-4" /> টেক্সট ({overlays.length})</h3>
               <button onClick={addOverlay} className="text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80">+ নতুন</button>
             </div>
             <div className="flex gap-1 mb-3 flex-wrap">
-              {overlays.map((_, i) => (
-                <button key={i} onClick={() => setSelectedIdx(i)} className={`text-xs px-2.5 py-1 rounded ${selectedIdx === i ? "bg-primary text-primary-foreground" : "bg-muted"}`}>লেয়ার {i + 1}</button>
+              {overlays.map((o, i) => (
+                <button key={i} onClick={() => setSelectedIdx(i)} className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${selectedIdx === i ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  {o.isFixed && <Lock className="h-2.5 w-2.5" />} {i + 1}
+                </button>
               ))}
             </div>
             {selected && (
               <div className="space-y-3">
-                <textarea value={selected.text} onChange={e => updateOverlay(selectedIdx, { text: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" placeholder="টেক্সট লিখুন..." />
+                <textarea value={selected.text} onChange={e => updateOverlay(selectedIdx, { text: e.target.value })} rows={2} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" placeholder="টেক্সট..." />
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground">X পজিশন (%)</label>
+                    <label className="text-xs text-muted-foreground">X (%)</label>
                     <input type="range" min={0} max={100} value={selected.x} onChange={e => updateOverlay(selectedIdx, { x: Number(e.target.value) })} className="w-full" />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">Y পজিশন (%)</label>
+                    <label className="text-xs text-muted-foreground">Y (%)</label>
                     <input type="range" min={0} max={100} value={selected.y} onChange={e => updateOverlay(selectedIdx, { y: Number(e.target.value) })} className="w-full" />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground">ফন্ট সাইজ</label>
+                    <label className="text-xs text-muted-foreground">সাইজ</label>
                     <input type="number" min={12} max={120} value={selected.fontSize} onChange={e => updateOverlay(selectedIdx, { fontSize: Number(e.target.value) })} className="w-full px-3 py-1.5 rounded-lg border border-input bg-background text-sm" />
                   </div>
                   <div>
@@ -354,12 +437,34 @@ export default function AdminPhotocard() {
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">ফন্ট</label>
-                  <select value={selected.fontFamily} onChange={e => updateOverlay(selectedIdx, { fontFamily: e.target.value })} className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm">
-                    {fonts.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  <select
+                    value={selected.fontFamily}
+                    onChange={e => {
+                      const font = allFonts.find(f => f.value === e.target.value);
+                      if (font && 'url' in font && (font as any).url) loadGoogleFont(font as any);
+                      updateOverlay(selectedIdx, { fontFamily: e.target.value });
+                    }}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm"
+                  >
+                    <optgroup label="Google Fonts (বাংলা)">
+                      {googleFonts.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                    </optgroup>
+                    {customFonts.length > 0 && (
+                      <optgroup label="আপলোড করা ফন্ট">
+                        {customFonts.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => removeOverlay(selectedIdx)} disabled={overlays.length <= 1} className="text-xs px-3 py-1.5 rounded bg-destructive/10 text-destructive disabled:opacity-30">লেয়ার মুছুন</button>
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => updateOverlay(selectedIdx, { isFixed: !selected.isFixed })}
+                    className={`text-xs px-3 py-1.5 rounded flex items-center gap-1 ${selected.isFixed ? "bg-yellow-500/20 text-yellow-700" : "bg-muted"}`}
+                  >
+                    {selected.isFixed ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                    {selected.isFixed ? "ফিক্সড" : "ফিক্সড করুন"}
+                  </button>
+                  <button onClick={() => removeOverlay(selectedIdx)} disabled={overlays.length <= 1} className="text-xs px-3 py-1.5 rounded bg-destructive/10 text-destructive disabled:opacity-30">মুছুন</button>
                   <button onClick={() => { setOverlays([{ ...defaultOverlay }]); setBgGradient(undefined); }} className="text-xs px-3 py-1.5 rounded bg-muted flex items-center gap-1"><RotateCcw className="h-3 w-3" /> রিসেট</button>
                 </div>
               </div>

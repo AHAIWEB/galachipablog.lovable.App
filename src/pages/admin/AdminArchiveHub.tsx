@@ -48,6 +48,8 @@ export default function AdminArchiveHub() {
   const [bulkUrls, setBulkUrls] = useState("");
   const [scrapeCategory, setScrapeCategory] = useState("");
   const [scrapeMode, setScrapeMode] = useState<"single" | "bulk">("single");
+  const [discoverLinks, setDiscoverLinks] = useState(false);
+  const [maxPages, setMaxPages] = useState(500);
   const [isScraping, setIsScraping] = useState(false);
   const [filterCat, setFilterCat] = useState("");
   const [publishingItem, setPublishingItem] = useState<string | null>(null);
@@ -126,11 +128,12 @@ export default function AdminArchiveHub() {
     setIsScraping(true);
     try {
       const { data, error } = await supabase.functions.invoke("archive-scraper", {
-        body: { urls, category: scrapeCategory || undefined },
+        body: { urls, category: scrapeCategory || undefined, discover_links: discoverLinks, max_pages: maxPages },
       });
       if (error) throw error;
-      const successCount = data?.results?.filter((r: any) => r.success).length ?? 0;
-      toast.success(`${successCount}/${urls.length} URL সফলভাবে স্ক্র্যাপ হয়েছে`);
+      const successCount = data?.successCount ?? data?.results?.filter((r: any) => r.success).length ?? 0;
+      const totalProcessed = data?.total ?? urls.length;
+      toast.success(`${successCount}/${totalProcessed} URL সফলভাবে স্ক্র্যাপ হয়েছে`);
       qc.invalidateQueries({ queryKey: ["archive-contents"] });
     } catch (e: any) {
       toast.error(e.message || "স্ক্র্যাপিং ব্যর্থ");
@@ -341,9 +344,15 @@ export default function AdminArchiveHub() {
                 placeholder="প্রতি লাইনে একটি URL দিন..."
                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm mb-3 resize-y" />
             )}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <input value={scrapeCategory} onChange={e => setScrapeCategory(e.target.value)} placeholder="ক্যাটাগরি (ঐচ্ছিক)"
-                className="px-3 py-2 rounded-lg border border-input bg-background text-sm flex-1" />
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm flex-1 min-w-[150px]" />
+              <input type="number" value={maxPages} onChange={e => setMaxPages(Number(e.target.value))} min={1} max={1000}
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm w-24" title="সর্বোচ্চ পেজ" />
+              <label className="flex items-center gap-1.5 text-xs">
+                <input type="checkbox" checked={discoverLinks} onChange={e => setDiscoverLinks(e.target.checked)} />
+                লিংক ডিসকভার (৫০০+)
+              </label>
               <button onClick={handleScrape} disabled={isScraping}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
                 {isScraping ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}

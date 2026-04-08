@@ -10,7 +10,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 
 export default function PostDetail() {
+  const { user } = useAuth();
   const { slug } = useParams<{ slug: string }>();
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
 
   const { data: post, isLoading } = useQuery({
     queryKey: ["post", slug],

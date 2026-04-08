@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import SiteHeader from "@/components/SiteHeader";
 import LeftSidebar from "@/components/LeftSidebar";
 import FeatureSlider from "@/components/FeatureSlider";
-import PinterestGrid from "@/components/PinterestGrid";
+import MasonryGrid from "@/components/MasonryGrid";
 import RightSidebar from "@/components/RightSidebar";
 import BusinessCardForm from "@/components/BusinessCardForm";
 import SiteFooter from "@/components/SiteFooter";
@@ -64,7 +64,7 @@ export default function Index() {
 
             <AdSlot placement="in-content" />
 
-            <PinterestGrid />
+            <MasonryGrid />
 
             <BusinessCardForm />
           </div>

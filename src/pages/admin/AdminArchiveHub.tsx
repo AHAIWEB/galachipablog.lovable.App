@@ -504,6 +504,34 @@ export default function AdminArchiveHub() {
                           <span className="truncate">{item.source_url}</span>
                         </a>
                       )}
+                      {/* Quality Score */}
+                      {(() => {
+                        const contentLen = item.content?.length || 0;
+                        let imgCount = 0;
+                        try { const imgs = typeof item.images === 'string' ? JSON.parse(item.images) : item.images; imgCount = imgs?.length || 0; } catch {}
+                        const tagCount = (item.tags?.length || 0) + (item.ai_tags?.length || 0);
+                        const hasImage = item.featured_image ? 1 : 0;
+                        const hasExcerpt = item.excerpt && item.excerpt.length > 20 ? 1 : 0;
+
+                        let score = 0;
+                        if (contentLen > 2000) score += 40; else if (contentLen > 500) score += 25; else if (contentLen > 100) score += 10;
+                        score += Math.min(imgCount * 5, 15);
+                        score += hasImage * 15;
+                        score += Math.min(tagCount * 3, 15);
+                        score += hasExcerpt ? 10 : 0;
+                        score += item.ai_summary ? 5 : 0;
+                        score = Math.min(score, 100);
+
+                        const color = score >= 70 ? "text-green-500 bg-green-500/10" : score >= 40 ? "text-amber-500 bg-amber-500/10" : "text-red-500 bg-red-500/10";
+                        const label = score >= 70 ? "ভালো" : score >= 40 ? "মাঝারি" : "দুর্বল";
+
+                        return (
+                          <div className={`inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${color}`}>
+                            <span className="font-bold">{score}</span>/100 — {label}
+                            <span className="text-muted-foreground ml-1">({contentLen} অক্ষর • {imgCount} ছবি • {tagCount} ট্যাগ)</span>
+                          </div>
+                        );
+                      })()}
                       {item.ai_summary && (
                         <p className="text-xs text-muted-foreground mt-1 bg-muted/50 rounded p-1.5 line-clamp-2">
                           <Sparkles className="h-3 w-3 inline mr-1 text-amber-500" />{item.ai_summary}

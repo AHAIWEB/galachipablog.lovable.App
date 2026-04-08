@@ -95,6 +95,113 @@ export type Database = {
         }
         Relationships: []
       }
+      archive_schedules: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          interval_hours: number
+          is_active: boolean
+          last_run_at: string | null
+          name: string
+          next_run_at: string | null
+          scrape_type: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          interval_hours?: number
+          is_active?: boolean
+          last_run_at?: string | null
+          name: string
+          next_run_at?: string | null
+          scrape_type?: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          interval_hours?: number
+          is_active?: boolean
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string | null
+          scrape_type?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      archived_contents: {
+        Row: {
+          ai_summary: string | null
+          ai_tags: string[] | null
+          category: string | null
+          content: string | null
+          created_at: string
+          excerpt: string | null
+          featured_image: string | null
+          id: string
+          images: Json | null
+          schedule_id: string | null
+          source_name: string | null
+          source_url: string
+          status: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          ai_tags?: string[] | null
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured_image?: string | null
+          id?: string
+          images?: Json | null
+          schedule_id?: string | null
+          source_name?: string | null
+          source_url: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          ai_tags?: string[] | null
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          excerpt?: string | null
+          featured_image?: string | null
+          id?: string
+          images?: Json | null
+          schedule_id?: string | null
+          source_name?: string | null
+          source_url?: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archived_contents_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "archive_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_cards: {
         Row: {
           address: string | null

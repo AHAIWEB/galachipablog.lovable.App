@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import SiteHeader from "@/components/SiteHeader";
@@ -7,8 +8,12 @@ import PinterestGrid from "@/components/PinterestGrid";
 import RightSidebar from "@/components/RightSidebar";
 import BusinessCardForm from "@/components/BusinessCardForm";
 import SiteFooter from "@/components/SiteFooter";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Index() {
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+
   const { data: dividerText } = useQuery({
     queryKey: ["setting-divider"],
     queryFn: async () => {
@@ -21,35 +26,121 @@ export default function Index() {
     },
   });
 
+  // Ad slot component
+  const AdSlot = ({ placement }: { placement: string }) => {
+    const { data: ads = [] } = useQuery({
+      queryKey: ["ads", placement],
+      queryFn: async () => {
+        const { data } = await supabase
+          .from("ads")
+          .select("*")
+          .eq("status", "active")
+          .eq("placement", placement)
+          .limit(1);
+        return data ?? [];
+      },
+      staleTime: 60000,
+    });
+
+    if (ads.length === 0) return null;
+    const ad = ads[0] as any;
+    return (
+      <a href={ad.link_url || "#"} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-border/50 hover:shadow-md transition-shadow my-3">
+        {ad.image_url ? (
+          <img src={ad.image_url} alt={ad.name} className="w-full" />
+        ) : (
+          <div className="p-3 bg-muted/30 text-sm text-center" dangerouslySetInnerHTML={{ __html: ad.content }} />
+        )}
+      </a>
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <SiteHeader />
 
-      <main className="flex-1 container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr_20%] gap-5">
-          <aside className="order-2 lg:order-1">
-            <LeftSidebar />
+      {/* Header ad */}
+      <div className="container mx-auto px-4">
+        <AdSlot placement="header" />
+      </div>
+
+      <main className="flex-1 container mx-auto px-4 py-4">
+        <div className="flex gap-4">
+          {/* Left sidebar toggle (mobile) + sidebar */}
+          <aside className={`hidden lg:block transition-all duration-300 ${leftOpen ? "w-[28%] shrink-0" : "w-0 overflow-hidden"}`}>
+            {leftOpen && <LeftSidebar />}
           </aside>
 
-          <div className="order-1 lg:order-2 space-y-6">
+          {/* Toggle button - left */}
+          <button
+            onClick={() => setLeftOpen(!leftOpen)}
+            className="hidden lg:flex items-center justify-center w-5 h-10 rounded-full bg-muted hover:bg-muted/80 self-start mt-2 shrink-0 transition-colors"
+            title={leftOpen ? "সাইডবার বন্ধ" : "সাইডবার খুলুন"}
+          >
+            {leftOpen ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          </button>
+
+          {/* Main content */}
+          <div className="flex-1 min-w-0 space-y-5">
             <FeatureSlider />
 
             <div className="section-divider">
               <span className="section-divider-text">{dividerText}</span>
             </div>
 
+            <AdSlot placement="in-content" />
+
             <PinterestGrid />
 
             <BusinessCardForm />
           </div>
 
-          <aside className="order-3">
-            <RightSidebar />
+          {/* Toggle button - right */}
+          <button
+            onClick={() => setRightOpen(!rightOpen)}
+            className="hidden lg:flex items-center justify-center w-5 h-10 rounded-full bg-muted hover:bg-muted/80 self-start mt-2 shrink-0 transition-colors"
+            title={rightOpen ? "সাইডবার বন্ধ" : "সাইডবার খুলুন"}
+          >
+            {rightOpen ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+          </button>
+
+          {/* Right sidebar */}
+          <aside className={`hidden lg:block transition-all duration-300 ${rightOpen ? "w-[20%] shrink-0" : "w-0 overflow-hidden"}`}>
+            {rightOpen && <RightSidebar />}
           </aside>
+        </div>
+
+        {/* Mobile sidebars as tabs */}
+        <div className="lg:hidden mt-6 space-y-4">
+          <MobileSidebarTabs />
         </div>
       </main>
 
+      {/* Footer ad */}
+      <div className="container mx-auto px-4">
+        <AdSlot placement="footer" />
+      </div>
+
       <SiteFooter />
+    </div>
+  );
+}
+
+function MobileSidebarTabs() {
+  const [tab, setTab] = useState<"left" | "right">("left");
+  return (
+    <div className="bg-card rounded-xl border border-border overflow-hidden">
+      <div className="flex border-b border-border">
+        <button onClick={() => setTab("left")} className={`flex-1 py-2.5 text-sm font-heading font-semibold transition-all ${tab === "left" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+          📰 পোস্ট সমূহ
+        </button>
+        <button onClick={() => setTab("right")} className={`flex-1 py-2.5 text-sm font-heading font-semibold transition-all ${tab === "right" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
+          📂 ডিরেক্টরি ও কার্ড
+        </button>
+      </div>
+      <div className="p-3">
+        {tab === "left" ? <LeftSidebar /> : <RightSidebar />}
+      </div>
     </div>
   );
 }

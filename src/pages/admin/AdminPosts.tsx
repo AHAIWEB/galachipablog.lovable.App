@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import PostImageUploader from "@/components/PostImageUploader";
 
 type Post = Tables<"posts">;
 
@@ -12,6 +13,7 @@ export default function AdminPosts() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Post | null>(null);
   const [form, setForm] = useState({ title: "", slug: "", content: "", excerpt: "", featured_image: "", category_id: "", status: "draft" as "draft" | "published" | "archived", is_featured: false });
+  const [postImages, setPostImages] = useState<{ id?: string; image_url: string; caption: string; sort_order: number }[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

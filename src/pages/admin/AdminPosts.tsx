@@ -237,6 +237,10 @@ export default function AdminPosts() {
               </label>
             </div>
           </div>
+          {/* Image gallery uploader */}
+          <div className="mt-4">
+            <PostImageUploader postId={editing?.id} images={postImages} onChange={setPostImages} />
+          </div>
           <div className="flex gap-2 mt-4">
             <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.title} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
               {saveMutation.isPending ? "সেভ হচ্ছে..." : "সেভ"}

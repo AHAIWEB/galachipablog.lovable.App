@@ -129,16 +129,20 @@ export default function AdminPosts() {
 
   const resetForm = () => {
     setForm({ title: "", slug: "", content: "", excerpt: "", featured_image: "", category_id: "", status: "draft", is_featured: false });
+    setPostImages([]);
     setEditing(null);
     setShowForm(false);
   };
 
-  const startEdit = (post: Post) => {
+  const startEdit = async (post: Post) => {
     setForm({
       title: post.title, slug: post.slug, content: post.content || "",
       excerpt: post.excerpt || "", featured_image: post.featured_image || "",
       category_id: post.category_id || "", status: post.status, is_featured: post.is_featured,
     });
+    // Load existing images
+    const { data: imgs } = await supabase.from("post_images").select("*").eq("post_id", post.id).order("sort_order");
+    setPostImages((imgs ?? []).map(img => ({ id: img.id, image_url: img.image_url, caption: img.caption || "", sort_order: img.sort_order })));
     setEditing(post);
     setShowForm(true);
   };

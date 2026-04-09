@@ -43,12 +43,23 @@ export default function AdminPosts() {
     mutationFn: async () => {
       const slug = form.slug || form.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\u0980-\u09FF\w-]/g, "");
       const payload = { ...form, slug, category_id: form.category_id || null };
+      let postId = editing?.id;
       if (editing) {
         const { error } = await supabase.from("posts").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("posts").insert(payload);
+        const { data, error } = await supabase.from("posts").insert(payload).select("id").single();
         if (error) throw error;
+        postId = data.id;
+      }
+      // Save post images
+      if (postId) {
+        await supabase.from("post_images").delete().eq("post_id", postId);
+        if (postImages.length > 0) {
+          await supabase.from("post_images").insert(
+            postImages.map((img, i) => ({ post_id: postId!, image_url: img.image_url, caption: img.caption, sort_order: i }))
+          );
+        }
       }
     },
     onSuccess: () => {

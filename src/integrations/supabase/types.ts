@@ -510,41 +510,6 @@ export type Database = {
           },
         ]
       }
-      post_images: {
-        Row: {
-          caption: string | null
-          created_at: string
-          id: string
-          image_url: string
-          post_id: string
-          sort_order: number
-        }
-        Insert: {
-          caption?: string | null
-          created_at?: string
-          id?: string
-          image_url: string
-          post_id: string
-          sort_order?: number
-        }
-        Update: {
-          caption?: string | null
-          created_at?: string
-          id?: string
-          image_url?: string
-          post_id?: string
-          sort_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "post_images_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "posts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       posts: {
         Row: {
           author_id: string | null
@@ -643,42 +608,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sidebar_widgets: {
-        Row: {
-          config: Json
-          created_at: string
-          id: string
-          is_active: boolean
-          sidebar: string
-          sort_order: number
-          title: string
-          updated_at: string
-          widget_type: string
-        }
-        Insert: {
-          config?: Json
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          sidebar?: string
-          sort_order?: number
-          title: string
-          updated_at?: string
-          widget_type: string
-        }
-        Update: {
-          config?: Json
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          sidebar?: string
-          sort_order?: number
-          title?: string
-          updated_at?: string
-          widget_type?: string
-        }
-        Relationships: []
-      }
       site_settings: {
         Row: {
           id: string
@@ -717,56 +646,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      website_links: {
-        Row: {
-          category_id: string | null
-          created_at: string
-          description: string | null
-          favicon_url: string | null
-          id: string
-          letter: string
-          sort_order: number
-          status: string
-          title: string
-          updated_at: string
-          url: string
-        }
-        Insert: {
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          favicon_url?: string | null
-          id?: string
-          letter?: string
-          sort_order?: number
-          status?: string
-          title: string
-          updated_at?: string
-          url: string
-        }
-        Update: {
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          favicon_url?: string | null
-          id?: string
-          letter?: string
-          sort_order?: number
-          status?: string
-          title?: string
-          updated_at?: string
-          url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "website_links_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {

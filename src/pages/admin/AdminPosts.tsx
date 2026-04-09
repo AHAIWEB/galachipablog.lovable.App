@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
-import PostImageUploader from "@/components/PostImageUploader";
 
 type Post = Tables<"posts">;
 
@@ -13,7 +12,6 @@ export default function AdminPosts() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Post | null>(null);
   const [form, setForm] = useState({ title: "", slug: "", content: "", excerpt: "", featured_image: "", category_id: "", status: "draft" as "draft" | "published" | "archived", is_featured: false });
-  const [postImages, setPostImages] = useState<{ id?: string; image_url: string; caption: string; sort_order: number }[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -43,23 +41,12 @@ export default function AdminPosts() {
     mutationFn: async () => {
       const slug = form.slug || form.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\u0980-\u09FF\w-]/g, "");
       const payload = { ...form, slug, category_id: form.category_id || null };
-      let postId = editing?.id;
       if (editing) {
         const { error } = await supabase.from("posts").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from("posts").insert(payload).select("id").single();
+        const { error } = await supabase.from("posts").insert(payload);
         if (error) throw error;
-        postId = data.id;
-      }
-      // Save post images
-      if (postId) {
-        await supabase.from("post_images").delete().eq("post_id", postId);
-        if (postImages.length > 0) {
-          await supabase.from("post_images").insert(
-            postImages.map((img, i) => ({ post_id: postId!, image_url: img.image_url, caption: img.caption, sort_order: i }))
-          );
-        }
       }
     },
     onSuccess: () => {
@@ -129,20 +116,16 @@ export default function AdminPosts() {
 
   const resetForm = () => {
     setForm({ title: "", slug: "", content: "", excerpt: "", featured_image: "", category_id: "", status: "draft", is_featured: false });
-    setPostImages([]);
     setEditing(null);
     setShowForm(false);
   };
 
-  const startEdit = async (post: Post) => {
+  const startEdit = (post: Post) => {
     setForm({
       title: post.title, slug: post.slug, content: post.content || "",
       excerpt: post.excerpt || "", featured_image: post.featured_image || "",
       category_id: post.category_id || "", status: post.status, is_featured: post.is_featured,
     });
-    // Load existing images
-    const { data: imgs } = await supabase.from("post_images").select("*").eq("post_id", post.id).order("sort_order");
-    setPostImages((imgs ?? []).map(img => ({ id: img.id, image_url: img.image_url, caption: img.caption || "", sort_order: img.sort_order })));
     setEditing(post);
     setShowForm(true);
   };
@@ -236,10 +219,6 @@ export default function AdminPosts() {
                 ফিচার্ড
               </label>
             </div>
-          </div>
-          {/* Image gallery uploader */}
-          <div className="mt-4">
-            <PostImageUploader postId={editing?.id} images={postImages} onChange={setPostImages} />
           </div>
           <div className="flex gap-2 mt-4">
             <button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.title} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">

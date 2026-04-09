@@ -1,7 +1,7 @@
 import { NavLink as RouterNavLink } from "react-router-dom";
 import {
   LayoutDashboard, FileText, FolderTree, CreditCard, Users, Rss, Activity,
-  ImageIcon, Zap, Quote, Palette, Shield, Megaphone, Archive, Link, PanelLeft,
+  ImageIcon, Zap, Quote, Palette, Shield, Megaphone, Archive,
 } from "lucide-react";
 
 const navItems = [
@@ -11,8 +11,6 @@ const navItems = [
   { to: "/admin/cards", icon: CreditCard, label: "বিজনেস কার্ড" },
   { to: "/admin/ads", icon: Megaphone, label: "বিজ্ঞাপন" },
   { to: "/admin/feeds", icon: Rss, label: "ফিড সোর্স" },
-  { to: "/admin/website-links", icon: Link, label: "ওয়েবসাইট লিংক" },
-  { to: "/admin/sidebar-widgets", icon: PanelLeft, label: "সাইডবার উইজেট" },
   { to: "/admin/users", icon: Users, label: "ইউজার" },
   { to: "/admin/settings", icon: Palette, label: "সেটিংস" },
   { to: "/admin/activity", icon: Activity, label: "অ্যাক্টিভিটি লগ" },

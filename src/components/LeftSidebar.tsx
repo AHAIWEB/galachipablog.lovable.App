@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import PhotoGalleryWidget from "@/components/PhotoGalleryWidget";
+import WebsiteLinksWidget from "@/components/WebsiteLinksWidget";
+import AdSlot from "@/components/AdSlot";
 
 const tabs = [
   { id: "latest", label: "সর্বশেষ" },
@@ -9,8 +12,9 @@ const tabs = [
   { id: "blog", label: "ব্লগ" },
 ] as const;
 
-export default function LeftSidebar() {
-  const [activeTab, setActiveTab] = useState<string>("latest");
+function PostListWidget({ filterType }: { filterType?: string }) {
+  const [activeTab, setActiveTab] = useState<string>(filterType || "latest");
+  const shownTabs = filterType ? [] : tabs;
 
   const { data: posts = [] } = useQuery({
     queryKey: ["sidebar-posts", activeTab],
@@ -39,22 +43,23 @@ export default function LeftSidebar() {
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-      <div className="flex border-b border-border">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2.5 text-sm font-heading font-semibold transition-all duration-200 relative ${
-              activeTab === tab.id
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
+      {shownTabs.length > 0 && (
+        <div className="flex border-b border-border">
+          {shownTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-2.5 text-sm font-heading font-semibold transition-all duration-200 ${
+                activeTab === tab.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="divide-y divide-border stagger-fade">
         {posts.length === 0 ? (
           <p className="p-3 text-sm text-muted-foreground">কোনো পোস্ট নেই</p>
@@ -82,6 +87,60 @@ export default function LeftSidebar() {
           })
         )}
       </div>
+    </div>
+  );
+}
+
+function WidgetRenderer({ widget }: { widget: any }) {
+  switch (widget.widget_type) {
+    case "latest_posts":
+      return <PostListWidget />;
+    case "news_posts":
+      return <PostListWidget filterType="news" />;
+    case "blog_posts":
+      return <PostListWidget filterType="blog" />;
+    case "photo_gallery":
+      return <PhotoGalleryWidget />;
+    case "website_links":
+      return <WebsiteLinksWidget />;
+    case "ad_slot":
+      return (
+        <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+          <div className="px-3 py-2 bg-muted/50 border-b border-border">
+            <h3 className="font-heading font-bold text-xs text-muted-foreground">📢 বিজ্ঞাপন</h3>
+          </div>
+          <div className="p-2"><AdSlot placement="sidebar" limit={3} /></div>
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
+export default function LeftSidebar() {
+  const { data: widgets } = useQuery({
+    queryKey: ["sidebar-widgets", "left"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sidebar_widgets")
+        .select("*")
+        .eq("sidebar", "left")
+        .eq("is_active", true)
+        .order("sort_order");
+      return data;
+    },
+  });
+
+  // If no widgets configured, show default
+  if (!widgets || widgets.length === 0) {
+    return <PostListWidget />;
+  }
+
+  return (
+    <div className="space-y-4">
+      {widgets.map(w => (
+        <WidgetRenderer key={w.id} widget={w} />
+      ))}
     </div>
   );
 }

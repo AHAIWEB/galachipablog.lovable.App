@@ -463,7 +463,14 @@ export default function AdminArchiveHub() {
                 <select value={bulkPublishCatId} onChange={e => setBulkPublishCatId(e.target.value)}
                   className="flex-1 px-2 py-1.5 rounded-lg border border-input bg-background text-xs">
                   <option value="">ক্যাটাগরি (অটো ম্যাচ)</option>
-                  {dbCategories?.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
+                  {categoryTree.map(parent => (
+                    <optgroup key={parent.id} label={`${parent.name} (${parent.type})`}>
+                      <option value={parent.id}>{parent.name}</option>
+                      {parent.children.map(child => (
+                        <option key={child.id} value={child.id}>↳ {child.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
                 <button onClick={handleBulkPublish} disabled={bulkPublish.isPending}
                   className="px-4 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium disabled:opacity-50">
@@ -578,7 +585,14 @@ export default function AdminArchiveHub() {
                       <select value={publishCatId} onChange={e => setPublishCatId(e.target.value)}
                         className="flex-1 px-2 py-1.5 rounded-lg border border-input bg-background text-xs">
                         <option value="">ক্যাটাগরি নির্বাচন (অটো: {item.category || "নেই"})</option>
-                        {dbCategories?.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
+                        {categoryTree.map(parent => (
+                          <optgroup key={parent.id} label={`${parent.name} (${parent.type})`}>
+                            <option value={parent.id}>{parent.name}</option>
+                            {parent.children.map(child => (
+                              <option key={child.id} value={child.id}>↳ {child.name}</option>
+                            ))}
+                          </optgroup>
+                        ))}
                       </select>
                       <button onClick={() => publishAsPost.mutate({ item, categoryId: publishCatId })}
                         disabled={publishAsPost.isPending}

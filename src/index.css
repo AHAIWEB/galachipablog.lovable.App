@@ -5,6 +5,10 @@
 @tailwind utilities;
 
 @layer base {
+  h1, h2, h3, h4, h5, h6, p, a, span {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
   :root {
     --background: 210 20% 98%;
     --foreground: 220 20% 10%;

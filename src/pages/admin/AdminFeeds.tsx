@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, RefreshCw, Play, Pause, Sparkles } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Play, Pause, Sparkles, FolderOpen } from "lucide-react";
 
 export default function AdminFeeds() {
   const queryClient = useQueryClient();
@@ -18,9 +18,9 @@ export default function AdminFeeds() {
   });
 
   const { data: categories } = useQuery({
-    queryKey: ["categories-list"],
+    queryKey: ["categories-full"],
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("id, name").order("name");
+      const { data } = await supabase.from("categories").select("id, name, type, parent_id, slug").is("deleted_at", null).order("sort_order").order("name");
       return data ?? [];
     },
   });
@@ -33,6 +33,16 @@ export default function AdminFeeds() {
       return data;
     },
   });
+
+  // Build category tree for hierarchical display
+  const categoryTree = useMemo(() => {
+    if (!categories) return [];
+    const parents = categories.filter(c => !c.parent_id);
+    return parents.map(p => ({
+      ...p,
+      children: categories.filter(c => c.parent_id === p.id),
+    }));
+  }, [categories]);
 
   const addFeed = useMutation({
     mutationFn: async () => {
@@ -74,13 +84,41 @@ export default function AdminFeeds() {
     },
   });
 
+  const [fetchingId, setFetchingId] = useState<string | null>(null);
   const fetchNow = async (sourceId: string) => {
-    toast.info("ফেচ শুরু হচ্ছে... (edge function প্রয়োজন)");
+    setFetchingId(sourceId);
+    try {
+      const { data, error } = await supabase.functions.invoke("auto-fetch");
+      if (error) throw error;
+      toast.success(`ফেচ সম্পন্ন! ${data?.results?.length ?? 0}টি সোর্স প্রসেস হয়েছে`);
+      queryClient.invalidateQueries({ queryKey: ["admin-feeds"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-fetched-articles"] });
+    } catch (e: any) {
+      toast.error(e.message || "ফেচ ব্যর্থ");
+    } finally {
+      setFetchingId(null);
+    }
+  };
+
+  const getCategoryName = (catId: string | null) => {
+    if (!catId || !categories) return null;
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return null;
+    if (cat.parent_id) {
+      const parent = categories.find(c => c.id === cat.parent_id);
+      return parent ? `${parent.name} › ${cat.name}` : cat.name;
+    }
+    return cat.name;
   };
 
   return (
     <div>
       <h1 className="font-heading font-bold text-2xl mb-6">⚡ ফিড সোর্স ও URL ফেচার</h1>
+
+      {/* Cron status */}
+      <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 mb-4 text-sm text-green-700 dark:text-green-400">
+        ✅ অটো-ফেচ সক্রিয় — প্রতি ৫ মিনিটে স্বয়ংক্রিয়ভাবে ফিড চেক হচ্ছে। এডমিন প্যানেল বন্ধ থাকলেও কাজ করবে।
+      </div>
 
       {/* Add form */}
       <div className="bg-card rounded-xl border border-border p-4 mb-6">
@@ -92,9 +130,17 @@ export default function AdminFeeds() {
             <option value="rss">RSS ফিড</option>
             <option value="scrape">URL স্ক্র্যাপ</option>
           </select>
+          {/* Category with hierarchy */}
           <select value={form.category_id} onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))} className="px-3 py-2 rounded-lg border border-input bg-background text-sm">
             <option value="">ক্যাটাগরি নির্বাচন</option>
-            {categories?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {categoryTree.map(parent => (
+              <optgroup key={parent.id} label={`${parent.name} (${parent.type})`}>
+                <option value={parent.id}>{parent.name}</option>
+                {parent.children.map(child => (
+                  <option key={child.id} value={child.id}>↳ {child.name}</option>
+                ))}
+              </optgroup>
+            ))}
           </select>
           <div className="flex items-center gap-2">
             <label className="text-xs text-muted-foreground whitespace-nowrap">ইন্টারভাল (মিনিট):</label>
@@ -120,14 +166,20 @@ export default function AdminFeeds() {
                 <div>
                   <p className="text-sm font-medium">{feed.name}</p>
                   <p className="text-xs text-muted-foreground">{feed.url}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {feed.type === "rss" ? "RSS" : "স্ক্র্যাপ"} • প্রতি {feed.fetch_interval_minutes} মিনিট
-                    {feed.last_fetched_at && ` • শেষ ফেচ: ${new Date(feed.last_fetched_at).toLocaleString("bn-BD")}`}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                    <span>{feed.type === "rss" ? "RSS" : "স্ক্র্যাপ"} • প্রতি {feed.fetch_interval_minutes} মিনিট</span>
+                    {feed.category_id && (
+                      <span className="flex items-center gap-0.5 text-primary">
+                        <FolderOpen className="h-3 w-3" />
+                        {getCategoryName(feed.category_id) || (feed as any).categories?.name}
+                      </span>
+                    )}
+                    {feed.last_fetched_at && <span>শেষ ফেচ: {new Date(feed.last_fetched_at).toLocaleString("bn-BD")}</span>}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => fetchNow(feed.id)} className="p-1.5 hover:bg-muted rounded" title="এখনই ফেচ করুন">
-                    <RefreshCw className="h-3.5 w-3.5" />
+                  <button onClick={() => fetchNow(feed.id)} disabled={fetchingId === feed.id} className="p-1.5 hover:bg-muted rounded" title="এখনই ফেচ করুন">
+                    <RefreshCw className={`h-3.5 w-3.5 ${fetchingId === feed.id ? "animate-spin" : ""}`} />
                   </button>
                   <button
                     onClick={() => toggleActive.mutate({ id: feed.id, is_active: !feed.is_active })}

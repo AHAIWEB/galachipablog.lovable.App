@@ -24,6 +24,8 @@ import AdminQuoteCard from "./pages/admin/AdminQuoteCard";
 import AdminSecurity from "./pages/admin/AdminSecurity";
 import AdminAds from "./pages/admin/AdminAds";
 import AdminArchiveHub from "./pages/admin/AdminArchiveHub";
+import AdminSidebarWidgets from "./pages/admin/AdminSidebarWidgets";
+import AdminWebsiteLinks from "./pages/admin/AdminWebsiteLinks";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
@@ -62,6 +64,8 @@ const App = () => (
               <Route path="security" element={<AdminSecurity />} />
               <Route path="ads" element={<AdminAds />} />
               <Route path="archive" element={<AdminArchiveHub />} />
+              <Route path="sidebar-widgets" element={<AdminSidebarWidgets />} />
+              <Route path="website-links" element={<AdminWebsiteLinks />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

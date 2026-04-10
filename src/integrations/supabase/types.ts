@@ -98,6 +98,7 @@ export type Database = {
       archive_schedules: {
         Row: {
           category: string | null
+          category_id: string | null
           created_at: string
           id: string
           interval_hours: number
@@ -111,6 +112,7 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          category_id?: string | null
           created_at?: string
           id?: string
           interval_hours?: number
@@ -124,6 +126,7 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          category_id?: string | null
           created_at?: string
           id?: string
           interval_hours?: number
@@ -135,7 +138,15 @@ export type Database = {
           updated_at?: string
           url?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "archive_schedules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       archived_contents: {
         Row: {

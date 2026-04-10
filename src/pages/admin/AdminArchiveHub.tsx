@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -58,7 +58,7 @@ export default function AdminArchiveHub() {
   const [bulkPublishCatId, setBulkPublishCatId] = useState<string>("");
   const [showBulkPublish, setShowBulkPublish] = useState(false);
 
-  const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "" });
+  const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "", category_id: "" });
 
   const { data: contents, isLoading } = useQuery({
     queryKey: ["archive-contents", filterCat],
@@ -81,12 +81,22 @@ export default function AdminArchiveHub() {
   });
 
   const { data: dbCategories } = useQuery({
-    queryKey: ["db-categories"],
+    queryKey: ["db-categories-full"],
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("id, name, type").is("deleted_at", null).order("name");
+      const { data } = await supabase.from("categories").select("id, name, type, parent_id, slug").is("deleted_at", null).order("sort_order").order("name");
       return data ?? [];
     },
   });
+
+  // Category tree for hierarchical dropdowns
+  const categoryTree = useMemo(() => {
+    if (!dbCategories) return [];
+    const parents = dbCategories.filter(c => !c.parent_id);
+    return parents.map(p => ({
+      ...p,
+      children: dbCategories.filter(c => c.parent_id === p.id),
+    }));
+  }, [dbCategories]);
 
   const archiveCategories = [...new Set((contents || []).map(c => c.category).filter(Boolean))] as string[];
 
@@ -280,7 +290,7 @@ export default function AdminArchiveHub() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["archive-schedules"] });
       toast.success("শিডিউল যোগ হয়েছে");
-      setSchedForm({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "" });
+      setSchedForm({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "", category_id: "" });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -453,7 +463,14 @@ export default function AdminArchiveHub() {
                 <select value={bulkPublishCatId} onChange={e => setBulkPublishCatId(e.target.value)}
                   className="flex-1 px-2 py-1.5 rounded-lg border border-input bg-background text-xs">
                   <option value="">ক্যাটাগরি (অটো ম্যাচ)</option>
-                  {dbCategories?.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
+                  {categoryTree.map(parent => (
+                    <optgroup key={parent.id} label={`${parent.name} (${parent.type})`}>
+                      <option value={parent.id}>{parent.name}</option>
+                      {parent.children.map(child => (
+                        <option key={child.id} value={child.id}>↳ {child.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
                 <button onClick={handleBulkPublish} disabled={bulkPublish.isPending}
                   className="px-4 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium disabled:opacity-50">
@@ -568,7 +585,14 @@ export default function AdminArchiveHub() {
                       <select value={publishCatId} onChange={e => setPublishCatId(e.target.value)}
                         className="flex-1 px-2 py-1.5 rounded-lg border border-input bg-background text-xs">
                         <option value="">ক্যাটাগরি নির্বাচন (অটো: {item.category || "নেই"})</option>
-                        {dbCategories?.map(c => <option key={c.id} value={c.id}>{c.name} ({c.type})</option>)}
+                        {categoryTree.map(parent => (
+                          <optgroup key={parent.id} label={`${parent.name} (${parent.type})`}>
+                            <option value={parent.id}>{parent.name}</option>
+                            {parent.children.map(child => (
+                              <option key={child.id} value={child.id}>↳ {child.name}</option>
+                            ))}
+                          </optgroup>
+                        ))}
                       </select>
                       <button onClick={() => publishAsPost.mutate({ item, categoryId: publishCatId })}
                         disabled={publishAsPost.isPending}
@@ -602,8 +626,22 @@ export default function AdminArchiveHub() {
                 <option value="single">একক URL</option>
                 <option value="bulk">বাল্ক (সাইটম্যাপ)</option>
               </select>
-              <input value={schedForm.category} onChange={e => setSchedForm(p => ({ ...p, category: e.target.value }))} placeholder="ক্যাটাগরি"
-                className="px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+              <select value={schedForm.category_id} onChange={e => {
+                  const catId = e.target.value;
+                  const catName = dbCategories?.find(c => c.id === catId)?.name || "";
+                  setSchedForm(p => ({ ...p, category_id: catId, category: catName }));
+                }}
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm">
+                <option value="">ক্যাটাগরি নির্বাচন</option>
+                {categoryTree.map(parent => (
+                  <optgroup key={parent.id} label={`${parent.name} (${parent.type})`}>
+                    <option value={parent.id}>{parent.name}</option>
+                    {parent.children.map(child => (
+                      <option key={child.id} value={child.id}>↳ {child.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-muted-foreground whitespace-nowrap">ইন্টারভাল (ঘণ্টা):</label>
                 <input type="number" value={schedForm.interval_hours} min={1}

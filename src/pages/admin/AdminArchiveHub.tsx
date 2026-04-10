@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -290,7 +290,7 @@ export default function AdminArchiveHub() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["archive-schedules"] });
       toast.success("শিডিউল যোগ হয়েছে");
-      setSchedForm({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "" });
+      setSchedForm({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "", category_id: "" });
     },
     onError: (e: any) => toast.error(e.message),
   });

@@ -58,7 +58,7 @@ export default function AdminArchiveHub() {
   const [bulkPublishCatId, setBulkPublishCatId] = useState<string>("");
   const [showBulkPublish, setShowBulkPublish] = useState(false);
 
-  const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "" });
+  const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "", category_id: "" });
 
   const { data: contents, isLoading } = useQuery({
     queryKey: ["archive-contents", filterCat],
@@ -81,12 +81,22 @@ export default function AdminArchiveHub() {
   });
 
   const { data: dbCategories } = useQuery({
-    queryKey: ["db-categories"],
+    queryKey: ["db-categories-full"],
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("id, name, type").is("deleted_at", null).order("name");
+      const { data } = await supabase.from("categories").select("id, name, type, parent_id, slug").is("deleted_at", null).order("sort_order").order("name");
       return data ?? [];
     },
   });
+
+  // Category tree for hierarchical dropdowns
+  const categoryTree = useMemo(() => {
+    if (!dbCategories) return [];
+    const parents = dbCategories.filter(c => !c.parent_id);
+    return parents.map(p => ({
+      ...p,
+      children: dbCategories.filter(c => c.parent_id === p.id),
+    }));
+  }, [dbCategories]);
 
   const archiveCategories = [...new Set((contents || []).map(c => c.category).filter(Boolean))] as string[];
 

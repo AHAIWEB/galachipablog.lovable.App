@@ -612,8 +612,22 @@ export default function AdminArchiveHub() {
                 <option value="single">একক URL</option>
                 <option value="bulk">বাল্ক (সাইটম্যাপ)</option>
               </select>
-              <input value={schedForm.category} onChange={e => setSchedForm(p => ({ ...p, category: e.target.value }))} placeholder="ক্যাটাগরি"
-                className="px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+              <select value={schedForm.category_id} onChange={e => {
+                  const catId = e.target.value;
+                  const catName = dbCategories?.find(c => c.id === catId)?.name || "";
+                  setSchedForm(p => ({ ...p, category_id: catId, category: catName }));
+                }}
+                className="px-3 py-2 rounded-lg border border-input bg-background text-sm">
+                <option value="">ক্যাটাগরি নির্বাচন</option>
+                {categoryTree.map(parent => (
+                  <optgroup key={parent.id} label={`${parent.name} (${parent.type})`}>
+                    <option value={parent.id}>{parent.name}</option>
+                    {parent.children.map(child => (
+                      <option key={child.id} value={child.id}>↳ {child.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-muted-foreground whitespace-nowrap">ইন্টারভাল (ঘণ্টা):</label>
                 <input type="number" value={schedForm.interval_hours} min={1}

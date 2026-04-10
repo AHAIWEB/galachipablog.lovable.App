@@ -8,7 +8,7 @@ import SearchOverlay from "@/components/SearchOverlay";
 
 type MenuType = "news" | "blog" | "directory" | null;
 
-type CategoryItem = { name: string; slug: string };
+type CategoryItem = { id: string; name: string; slug: string };
 type CategoryGroup = {
   letter: string;
   items: CategoryItem[];
@@ -28,22 +28,51 @@ function useDynamicCategories(type: "news" | "blog" | "directory") {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
-        .select("name, letter, slug")
+        .select("id, name, letter, slug, parent_id")
         .eq("type", type)
+        .is("deleted_at", null)
         .order("letter")
         .order("name");
       if (error) throw error;
-      
+
+      // Build parent > children hierarchy
+      const parents = data?.filter(c => !c.parent_id) ?? [];
+      const children = data?.filter(c => c.parent_id) ?? [];
+
       const grouped: Record<string, CategoryItem[]> = {};
-      data?.forEach(cat => {
+      parents.forEach(cat => {
         const letter = cat.letter || cat.name[0];
         if (!grouped[letter]) grouped[letter] = [];
-        grouped[letter].push({ name: cat.name, slug: cat.slug });
+        grouped[letter].push({ id: cat.id, name: cat.name, slug: cat.slug });
+        // Add children under parent
+        children.filter(c => c.parent_id === cat.id).forEach(child => {
+          grouped[letter].push({ id: child.id, name: `  ↳ ${child.name}`, slug: child.slug });
+        });
       });
-      
+
       return Object.entries(grouped).map(([letter, items]) => ({ letter, items })) as CategoryGroup[];
     },
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+function useLatestPosts(type: "news" | "blog" | "directory", enabled: boolean) {
+  return useQuery({
+    queryKey: ["mega-latest", type],
+    queryFn: async () => {
+      const { data: cats } = await supabase.from("categories").select("id").eq("type", type);
+      if (!cats || cats.length === 0) return [];
+      const { data } = await supabase
+        .from("posts")
+        .select("id, title, slug, featured_image")
+        .eq("status", "published")
+        .in("category_id", cats.map(c => c.id))
+        .order("created_at", { ascending: false })
+        .limit(4);
+      return data ?? [];
+    },
+    enabled,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -51,6 +80,7 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const { data: categories = [] } = useDynamicCategories(type!);
+  const { data: latestPosts = [] } = useLatestPosts(type!, !!type);
 
   useEffect(() => {
     searchRef.current?.focus();
@@ -58,7 +88,7 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
 
   if (!type) return null;
   const config = menuConfig[type];
-  
+
   const filtered = search
     ? categories
         .map(c => ({ ...c, items: c.items.filter(i => i.name.includes(search)) }))
@@ -70,8 +100,12 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
   };
 
   return (
-    <div className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up">
+    <div
+      className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up"
+      onMouseLeave={onClose}
+    >
       <div className="container mx-auto p-4 max-h-[70vh] overflow-hidden flex gap-4">
+        {/* Letter index */}
         <div className="hidden lg:flex flex-col gap-1 py-2 border-r border-border pr-3 overflow-y-auto shrink-0">
           {letterList.map(l => {
             const exists = categories.some(c => c.letter === l);
@@ -90,6 +124,7 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
           })}
         </div>
 
+        {/* Categories */}
         <div className="flex-1 overflow-y-auto">
           <div className="flex items-center gap-3 mb-4 sticky top-0 bg-card z-10 pb-2">
             <div className="relative flex-1 max-w-md">
@@ -115,9 +150,9 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
                 <ul className="mt-1 space-y-0.5">
                   {cat.items.map(item => (
                     <li key={item.slug}>
-                      <a href={`/category/${item.slug}`} className="text-sm text-foreground/80 hover:text-primary hover:underline block py-0.5 transition-colors">
+                      <Link to={`/category/${item.slug}`} onClick={onClose} className="text-sm text-foreground/80 hover:text-primary hover:underline block py-0.5 transition-colors">
                         {item.name}
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
@@ -129,6 +164,23 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
             <p className="text-sm text-muted-foreground text-center py-8">ক্যাটাগরি লোড হচ্ছে...</p>
           )}
         </div>
+
+        {/* Latest posts sidebar */}
+        {latestPosts.length > 0 && (
+          <div className="hidden lg:block w-56 shrink-0 border-l border-border pl-4">
+            <h4 className="font-heading font-bold text-xs text-muted-foreground mb-3">সর্বশেষ</h4>
+            <div className="space-y-3">
+              {latestPosts.map(p => (
+                <Link key={p.id} to={`/post/${p.slug}`} onClick={onClose} className="block group">
+                  {p.featured_image && (
+                    <img src={p.featured_image} alt="" className="w-full h-20 object-cover rounded-lg mb-1" />
+                  )}
+                  <p className="text-xs font-heading font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2">{p.title}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -139,6 +191,16 @@ export default function SiteHeader() {
   const [openMenu, setOpenMenu] = useState<MenuType>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMenuEnter = (type: "news" | "blog" | "directory") => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setOpenMenu(type);
+  };
+
+  const handleMenuLeave = () => {
+    hoverTimeoutRef.current = setTimeout(() => setOpenMenu(null), 200);
+  };
 
   const toggleMenu = (type: MenuType) => {
     setOpenMenu(prev => (prev === type ? null : type));
@@ -188,19 +250,25 @@ export default function SiteHeader() {
       <nav className="bg-card border-b border-border shadow-sm">
         <div className="container mx-auto px-4">
           <div className={`${mobileOpen ? "flex" : "hidden"} md:flex items-center gap-1 flex-col md:flex-row py-2 md:py-0`}>
-           {(["news", "blog", "directory"] as const).map(type => (
-              <button
+            {(["news", "blog", "directory"] as const).map(type => (
+              <div
                 key={type}
-                onClick={() => toggleMenu(type)}
-                className={`flex items-center gap-1 px-4 py-2.5 text-sm font-heading font-semibold rounded-lg md:rounded-none transition-colors w-full md:w-auto text-left ${
-                  openMenu === type
-                    ? "bg-primary text-primary-foreground"
-                    : "text-foreground hover:bg-muted"
-                }`}
+                className="relative w-full md:w-auto"
+                onMouseEnter={() => handleMenuEnter(type)}
+                onMouseLeave={handleMenuLeave}
               >
-                {menuConfig[type].label}
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openMenu === type ? "rotate-180" : ""}`} />
-              </button>
+                <button
+                  onClick={() => toggleMenu(type)}
+                  className={`flex items-center gap-1 px-4 py-2.5 text-sm font-heading font-semibold rounded-lg md:rounded-none transition-colors w-full md:w-auto text-left ${
+                    openMenu === type
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {menuConfig[type].label}
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openMenu === type ? "rotate-180" : ""}`} />
+                </button>
+              </div>
             ))}
             <Link to="/about" className="px-4 py-2.5 text-sm font-heading font-semibold text-foreground hover:bg-muted rounded-lg md:rounded-none transition-colors w-full md:w-auto text-left block md:inline">আমাদের সম্পর্কে</Link>
           </div>

@@ -14,6 +14,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "URL required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Ensure URL has a scheme
+    url = url.trim();
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url;
+    }
+
     console.log("Scraping links from:", url);
 
     const res = await fetch(url, {

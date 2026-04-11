@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image } from "lucide-react";
+import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image, Star } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Post = Tables<"posts">;
@@ -214,6 +214,15 @@ export default function AdminPosts() {
     else setSelectedIds(new Set(filtered.map(p => p.id)));
   };
 
+  // Fetched articles from feeds
+  const { data: feedArticles } = useQuery({
+    queryKey: ["admin-feed-articles-summary"],
+    queryFn: async () => {
+      const { data } = await supabase.from("fetched_articles").select("id, title, status, feed_sources(name)").eq("status", "fetched").order("created_at", { ascending: false }).limit(5);
+      return data ?? [];
+    },
+  });
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -231,6 +240,19 @@ export default function AdminPosts() {
           </button>
         </div>
       </div>
+
+      {/* Feed articles summary */}
+      {feedArticles && feedArticles.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 mb-4">
+          <p className="text-xs font-heading font-semibold text-blue-700 dark:text-blue-300 mb-2">⚡ ফিড থেকে {feedArticles.length}টি নতুন আর্টিকেল অপেক্ষায়</p>
+          <div className="space-y-1">
+            {feedArticles.slice(0, 3).map(a => (
+              <p key={a.id} className="text-xs text-muted-foreground truncate">• {a.title} <span className="text-blue-500">({(a as any).feed_sources?.name})</span></p>
+            ))}
+          </div>
+          <a href="/admin/feeds" className="text-xs text-blue-600 hover:underline mt-1 inline-block">ফিড ম্যানেজার →</a>
+        </div>
+      )}
 
       {/* Search & filter */}
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -370,17 +392,25 @@ export default function AdminPosts() {
                     }`}>
                       {post.status === "published" ? "প্রকাশিত" : post.status === "draft" ? "ড্রাফট" : "আর্কাইভ"}
                     </span>
-                    {(post as any).categories?.name && (
-                      <span className="text-[10px] text-muted-foreground">{(post as any).categories.name}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-0.5 shrink-0">
-                  <button onClick={() => sharePost(post)} className="p-1.5 hover:bg-muted rounded" title="শেয়ার"><Share2 className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => publishBlogger(post)} className="p-1.5 hover:bg-muted rounded" title="Blogger"><Globe className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => startEdit(post)} className="p-1.5 hover:bg-muted rounded" title="সম্পাদনা"><Pencil className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => { if (confirm("বিনে সরাবেন?")) deleteMutation.mutate(post.id); }} className="p-1.5 hover:bg-destructive/10 rounded text-destructive" title="মুছুন"><Trash2 className="h-3.5 w-3.5" /></button>
-                </div>
+                     {post.is_featured && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">⭐ ফিচার্ড</span>}
+                     {(post as any).categories?.name && (
+                       <span className="text-[10px] text-muted-foreground">{(post as any).categories.name}</span>
+                     )}
+                   </div>
+                 </div>
+                 <div className="flex gap-0.5 shrink-0">
+                   <button onClick={async () => {
+                     await supabase.from("posts").update({ is_featured: !post.is_featured }).eq("id", post.id);
+                     queryClient.invalidateQueries({ queryKey: ["admin-posts"] });
+                     toast.success(post.is_featured ? "ফিচার্ড সরানো হয়েছে" : "ফিচার্ড করা হয়েছে");
+                   }} className={`p-1.5 hover:bg-muted rounded ${post.is_featured ? "text-amber-500" : ""}`} title="ফিচার্ড">
+                     <Star className={`h-3.5 w-3.5 ${post.is_featured ? "fill-current" : ""}`} />
+                   </button>
+                   <button onClick={() => sharePost(post)} className="p-1.5 hover:bg-muted rounded" title="শেয়ার"><Share2 className="h-3.5 w-3.5" /></button>
+                   <button onClick={() => publishBlogger(post)} className="p-1.5 hover:bg-muted rounded" title="Blogger"><Globe className="h-3.5 w-3.5" /></button>
+                   <button onClick={() => startEdit(post)} className="p-1.5 hover:bg-muted rounded" title="সম্পাদনা"><Pencil className="h-3.5 w-3.5" /></button>
+                   <button onClick={() => { if (confirm("বিনে সরাবেন?")) deleteMutation.mutate(post.id); }} className="p-1.5 hover:bg-destructive/10 rounded text-destructive" title="মুছুন"><Trash2 className="h-3.5 w-3.5" /></button>
+                 </div>
               </div>
             ))}
           </div>

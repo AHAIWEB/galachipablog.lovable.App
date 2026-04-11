@@ -980,6 +980,10 @@
                 <b:widget id='Label1' locked='false' title='ক্যাটাগরি' type='Label' visible='true'/>
               </b:section>
             </div>
+            <!-- Dynamic widgets from Supabase -->
+            <div id='dynamicRightWidgets'></div>
+          </aside>
+            </div>
           </aside>
         </div>
 

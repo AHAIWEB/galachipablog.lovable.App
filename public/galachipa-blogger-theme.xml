@@ -624,6 +624,76 @@
         background: var(--primary-light); color: var(--primary); text-decoration: none;
       }
 
+      /* ============ WEBSITE LINKS DIRECTORY ============ */
+      .wlinks-section { margin-top: 24px; }
+      .wlinks-cat-header {
+        background: var(--primary);
+        color: white;
+        text-align: center;
+        padding: 10px 16px;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        font-family: 'Noto Sans Bengali', sans-serif;
+        font-weight: 800;
+        font-size: 0.95rem;
+      }
+      .wlinks-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+        overflow: hidden;
+        background: var(--card);
+      }
+      .wlinks-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 20px 12px;
+        border-bottom: 1px solid var(--border);
+        text-decoration: none;
+        color: var(--foreground);
+        transition: background .2s;
+        text-align: center;
+      }
+      .wlinks-item:nth-child(odd) { border-right: 1px solid var(--border); }
+      .wlinks-item:hover { background: var(--muted); }
+      .wlinks-item img { max-height: 40px; max-width: 160px; object-fit: contain; }
+      .wlinks-item span { font-size: 0.88rem; font-weight: 500; }
+      .wlinks-submit {
+        max-width: 480px;
+        margin: 24px auto;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        text-align: center;
+      }
+      .wlinks-submit h3 { font-family: 'Noto Sans Bengali', sans-serif; font-weight: 800; margin-bottom: 12px; }
+      .wlinks-submit input {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+        background: var(--background);
+      }
+      .wlinks-submit button {
+        width: 100%;
+        padding: 10px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+      .wlinks-submit button:hover { opacity: 0.9; }
+
       /* ============ FOOTER ============ */
       .footer-shell { margin: 0 0 24px; }
       .footer-card {
@@ -727,6 +797,7 @@
             <button class='nav-btn' data-menu='news' onclick='toggleMega("news")'>📰 জনপদ ও খবর <span class='arrow'>▾</span></button>
             <button class='nav-btn' data-menu='blog' onclick='toggleMega("blog")'>💡 মনন ও ব্লগ <span class='arrow'>▾</span></button>
             <button class='nav-btn' data-menu='directory' onclick='toggleMega("directory")'>📂 ইনডেক্স ও ডিরেক্টরি <span class='arrow'>▾</span></button>
+            <a class='nav-link' href='/p/website-links.html'>🔗 ওয়েবসাইট লিংক</a>
             <a class='nav-link' href='/p/about.html'>আমাদের সম্পর্কে</a>
           </div>
         </div>

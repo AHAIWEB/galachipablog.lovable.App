@@ -214,6 +214,15 @@ export default function AdminPosts() {
     else setSelectedIds(new Set(filtered.map(p => p.id)));
   };
 
+  // Fetched articles from feeds
+  const { data: feedArticles } = useQuery({
+    queryKey: ["admin-feed-articles-summary"],
+    queryFn: async () => {
+      const { data } = await supabase.from("fetched_articles").select("id, title, status, feed_sources(name)").eq("status", "fetched").order("created_at", { ascending: false }).limit(5);
+      return data ?? [];
+    },
+  });
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -231,6 +240,19 @@ export default function AdminPosts() {
           </button>
         </div>
       </div>
+
+      {/* Feed articles summary */}
+      {feedArticles && feedArticles.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 mb-4">
+          <p className="text-xs font-heading font-semibold text-blue-700 dark:text-blue-300 mb-2">⚡ ফিড থেকে {feedArticles.length}টি নতুন আর্টিকেল অপেক্ষায়</p>
+          <div className="space-y-1">
+            {feedArticles.slice(0, 3).map(a => (
+              <p key={a.id} className="text-xs text-muted-foreground truncate">• {a.title} <span className="text-blue-500">({(a as any).feed_sources?.name})</span></p>
+            ))}
+          </div>
+          <a href="/admin/feeds" className="text-xs text-blue-600 hover:underline mt-1 inline-block">ফিড ম্যানেজার →</a>
+        </div>
+      )}
 
       {/* Search & filter */}
       <div className="flex gap-2 mb-4 flex-wrap">

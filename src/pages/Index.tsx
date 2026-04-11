@@ -7,7 +7,6 @@ import FeatureSlider from "@/components/FeatureSlider";
 import MasonryGrid from "@/components/MasonryGrid";
 import DynamicSidebar from "@/components/DynamicSidebar";
 import SiteFooter from "@/components/SiteFooter";
-import SiteFooter from "@/components/SiteFooter";
 import AdSlot from "@/components/AdSlot";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 

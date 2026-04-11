@@ -429,7 +429,7 @@ export default function AdminArchiveHub() {
                   : <Square className="h-4 w-4" />}
                 {selectedIds.size > 0 ? `${selectedIds.size}টি সিলেক্টেড` : "সব সিলেক্ট"}
               </button>
-              {selectedIds.size > 0 && (
+               {selectedIds.size > 0 && (
                 <>
                   <div className="flex-1" />
                   <button onClick={() => { const items = contents?.filter(c => selectedIds.has(c.id)) ?? []; refetchItems(items); }}
@@ -441,17 +441,42 @@ export default function AdminArchiveHub() {
                     className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium">
                     <ChevronsUp className="h-3.5 w-3.5" /> বাল্ক পাবলিশ ({selectedIds.size})
                   </button>
+                  <button onClick={async () => {
+                    if (!confirm(`${selectedIds.size}টি কন্টেন্ট ডিলিট করবেন?`)) return;
+                    const { error } = await supabase.from("archived_contents").delete().in("id", [...selectedIds]);
+                    if (error) { toast.error(error.message); return; }
+                    toast.success(`${selectedIds.size}টি মুছে ফেলা হয়েছে`);
+                    setSelectedIds(new Set());
+                    qc.invalidateQueries({ queryKey: ["archive-contents"] });
+                  }}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium">
+                    <Trash2 className="h-3.5 w-3.5" /> ডিলিট ({selectedIds.size})
+                  </button>
                 </>
               )}
             </div>
           )}
 
-          {/* Re-fetch all broken button */}
-          <div className="flex gap-2">
+          {/* Bulk delete options */}
+          <div className="flex gap-2 flex-wrap">
             <button onClick={refetchAll} disabled={isRefetching}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 text-xs font-medium disabled:opacity-50 transition-colors">
               <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
               সব ভাঙ্গা কন্টেন্ট রি-আপডেট
+            </button>
+            <button onClick={async () => {
+              const target = filterCat ? contents?.filter(c => c.category === filterCat) : contents;
+              if (!target?.length) return toast.error("কন্টেন্ট নেই");
+              if (!confirm(`${filterCat || "সব"} — ${target.length}টি কন্টেন্ট ডিলিট করবেন?`)) return;
+              const { error } = await supabase.from("archived_contents").delete().in("id", target.map(c => c.id));
+              if (error) { toast.error(error.message); return; }
+              toast.success(`${target.length}টি ডিলিট হয়েছে`);
+              qc.invalidateQueries({ queryKey: ["archive-contents"] });
+              setSelectedIds(new Set());
+            }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 text-xs font-medium transition-colors">
+              <Trash2 className="h-3.5 w-3.5" />
+              {filterCat ? `"${filterCat}" সব ডিলিট` : "সব ডিলিট"}
             </button>
           </div>
 

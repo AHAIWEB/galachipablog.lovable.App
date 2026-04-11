@@ -64,8 +64,6 @@ export default function Index() {
             <AdSlot placement="in-content" />
 
             <MasonryGrid />
-
-            <BusinessCardForm />
           </div>
 
           <button

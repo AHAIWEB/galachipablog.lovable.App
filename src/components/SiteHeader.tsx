@@ -270,6 +270,7 @@ export default function SiteHeader() {
                 </button>
               </div>
             ))}
+            <Link to="/website-links" className="px-4 py-2.5 text-sm font-heading font-semibold text-foreground hover:bg-muted rounded-lg md:rounded-none transition-colors w-full md:w-auto text-left block md:inline">🌐 ওয়েবসাইট লিংক</Link>
             <Link to="/about" className="px-4 py-2.5 text-sm font-heading font-semibold text-foreground hover:bg-muted rounded-lg md:rounded-none transition-colors w-full md:w-auto text-left block md:inline">আমাদের সম্পর্কে</Link>
           </div>
         </div>

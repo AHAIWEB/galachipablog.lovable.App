@@ -21,10 +21,25 @@ const aspectClasses = [
 ];
 
 export default function MasonryGrid() {
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [allPosts, setAllPosts] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const loaderRef = useRef<HTMLDivElement>(null);
+
+  // Realtime subscription - auto-refresh when new posts are published
+  useEffect(() => {
+    const channel = supabase
+      .channel('posts-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
+        queryClient.invalidateQueries({ queryKey: ["masonry-posts"] });
+        setAllPosts([]);
+        setPage(1);
+        setHasMore(true);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   const { data, isFetching } = useQuery({
     queryKey: ["masonry-posts", page],

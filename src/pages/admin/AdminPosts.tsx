@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image } from "lucide-react";
+import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image, Star } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Post = Tables<"posts">;
@@ -370,17 +370,25 @@ export default function AdminPosts() {
                     }`}>
                       {post.status === "published" ? "প্রকাশিত" : post.status === "draft" ? "ড্রাফট" : "আর্কাইভ"}
                     </span>
-                    {(post as any).categories?.name && (
-                      <span className="text-[10px] text-muted-foreground">{(post as any).categories.name}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-0.5 shrink-0">
-                  <button onClick={() => sharePost(post)} className="p-1.5 hover:bg-muted rounded" title="শেয়ার"><Share2 className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => publishBlogger(post)} className="p-1.5 hover:bg-muted rounded" title="Blogger"><Globe className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => startEdit(post)} className="p-1.5 hover:bg-muted rounded" title="সম্পাদনা"><Pencil className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => { if (confirm("বিনে সরাবেন?")) deleteMutation.mutate(post.id); }} className="p-1.5 hover:bg-destructive/10 rounded text-destructive" title="মুছুন"><Trash2 className="h-3.5 w-3.5" /></button>
-                </div>
+                     {post.is_featured && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">⭐ ফিচার্ড</span>}
+                     {(post as any).categories?.name && (
+                       <span className="text-[10px] text-muted-foreground">{(post as any).categories.name}</span>
+                     )}
+                   </div>
+                 </div>
+                 <div className="flex gap-0.5 shrink-0">
+                   <button onClick={async () => {
+                     await supabase.from("posts").update({ is_featured: !post.is_featured }).eq("id", post.id);
+                     queryClient.invalidateQueries({ queryKey: ["admin-posts"] });
+                     toast.success(post.is_featured ? "ফিচার্ড সরানো হয়েছে" : "ফিচার্ড করা হয়েছে");
+                   }} className={`p-1.5 hover:bg-muted rounded ${post.is_featured ? "text-amber-500" : ""}`} title="ফিচার্ড">
+                     <Star className={`h-3.5 w-3.5 ${post.is_featured ? "fill-current" : ""}`} />
+                   </button>
+                   <button onClick={() => sharePost(post)} className="p-1.5 hover:bg-muted rounded" title="শেয়ার"><Share2 className="h-3.5 w-3.5" /></button>
+                   <button onClick={() => publishBlogger(post)} className="p-1.5 hover:bg-muted rounded" title="Blogger"><Globe className="h-3.5 w-3.5" /></button>
+                   <button onClick={() => startEdit(post)} className="p-1.5 hover:bg-muted rounded" title="সম্পাদনা"><Pencil className="h-3.5 w-3.5" /></button>
+                   <button onClick={() => { if (confirm("বিনে সরাবেন?")) deleteMutation.mutate(post.id); }} className="p-1.5 hover:bg-destructive/10 rounded text-destructive" title="মুছুন"><Trash2 className="h-3.5 w-3.5" /></button>
+                 </div>
               </div>
             ))}
           </div>

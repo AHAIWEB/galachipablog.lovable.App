@@ -98,7 +98,7 @@ export default function MasonryGrid() {
                 loading="lazy"
               />
             </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent group-hover:from-foreground/90 transition-all duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-transparent to-transparent" />
             <div className="absolute top-2 left-2">
               {catName && (
                 <span className={catType === "news" ? "tag-news" : catType === "blog" ? "tag-blog" : "tag-directory"}>
@@ -106,15 +106,10 @@ export default function MasonryGrid() {
                 </span>
               )}
             </div>
-            <div className="absolute bottom-2 left-2 right-2">
-              <h3 className="text-xs md:text-sm font-heading font-semibold text-card leading-tight group-hover:underline decoration-1 underline-offset-2">
+            <div className="absolute bottom-0 left-0 right-0 p-2.5">
+              <h3 className="text-xs md:text-sm font-heading font-bold text-white leading-snug drop-shadow-lg line-clamp-2">
                 {post.title}
               </h3>
-              {post.excerpt && (
-                <p className="text-[10px] text-card/70 line-clamp-2 mt-0.5 hidden sm:block">
-                  {post.excerpt}
-                </p>
-              )}
             </div>
           </Link>
         );

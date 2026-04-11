@@ -29,6 +29,7 @@ import AdminWebsiteLinks from "./pages/admin/AdminWebsiteLinks";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
+import WebsiteLinksPage from "./pages/WebsiteLinksPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

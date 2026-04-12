@@ -76,12 +76,51 @@ function useLatestPosts(type: "news" | "blog" | "directory", enabled: boolean) {
   });
 }
 
-function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }) {
+function WebLinksDropdown({ onClose }: { onClose: () => void }) {
+  const { data: links = [] } = useQuery({
+    queryKey: ["menu-website-links"],
+    queryFn: async () => {
+      const { data } = await supabase.from("website_links").select("id, title, url, favicon_url").eq("status", "active").order("sort_order").order("title").limit(42);
+      return data ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  return (
+    <div className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up" onMouseLeave={onClose}>
+      <div className="container mx-auto p-4 max-h-[70vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-heading font-bold text-sm">🌐 বাংলাদেশের পত্রিকা ও ওয়েবসাইট</h3>
+          <div className="flex items-center gap-2">
+            <Link to="/website-links" onClick={onClose} className="text-xs text-primary hover:underline">সব দেখুন →</Link>
+            <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-1">
+          {links.map(link => (
+            <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-muted/50 transition-colors group">
+              <div className="w-12 h-9 flex items-center justify-center">
+                {link.favicon_url ? (
+                  <img src={link.favicon_url} alt={link.title} className="max-w-full max-h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                ) : (
+                  <Globe className="h-6 w-6 text-muted-foreground" />
+                )}
+              </div>
+              <span className="text-[10px] text-center leading-tight line-clamp-2 group-hover:text-primary transition-colors">{link.title}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MegaDropdown({ type, onClose }: { type: "news" | "blog" | "directory"; onClose: () => void }) {
   const [search, setSearch] = useState("");
   const [hoveredCatId, setHoveredCatId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const { data: categories = [] } = useDynamicCategories(type!);
-  const { data: latestPosts = [] } = useLatestPosts(type!, !!type);
+  const { data: categories = [] } = useDynamicCategories(type);
+  const { data: latestPosts = [] } = useLatestPosts(type, true);
 
   // Fetch posts for hovered category
   const { data: catPosts = [] } = useQuery({

@@ -9,6 +9,7 @@ const WIDGET_TYPES = [
   { value: "news", label: "খবর" },
   { value: "blog", label: "ব্লগ" },
   { value: "directory", label: "ডিরেক্টরি" },
+  { value: "category_posts", label: "নির্দিষ্ট ক্যাটাগরি পোস্ট" },
   { value: "photo_gallery", label: "ফটো গ্যালারি" },
   { value: "website_links", label: "ওয়েবসাইট লিংক" },
   { value: "business_cards", label: "বিজনেস কার্ড" },

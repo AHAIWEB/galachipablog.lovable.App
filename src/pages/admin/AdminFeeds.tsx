@@ -8,9 +8,10 @@ export default function AdminFeeds() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name: "", url: "", type: "rss" as "rss" | "scrape", fetch_interval_minutes: 5, category_id: "" });
   const [editingArticle, setEditingArticle] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ title: "", content: "", excerpt: "" });
+  const [editForm, setEditForm] = useState({ title: "", content: "", excerpt: "", category_id: "" });
   const [autoPublish, setAutoPublish] = useState(true);
   const [articleLimit, setArticleLimit] = useState(20);
+  const [articleCategoryMap, setArticleCategoryMap] = useState<Record<string, string>>({});
 
   const { data: feeds, isLoading } = useQuery({
     queryKey: ["admin-feeds"],
@@ -32,7 +33,7 @@ export default function AdminFeeds() {
   const { data: articles } = useQuery({
     queryKey: ["admin-fetched-articles", articleLimit],
     queryFn: async () => {
-      const { data, error } = await supabase.from("fetched_articles").select("*, feed_sources(name)").order("created_at", { ascending: false }).limit(articleLimit);
+      const { data, error } = await supabase.from("fetched_articles").select("*, feed_sources(name, category_id)").order("created_at", { ascending: false }).limit(articleLimit);
       if (error) throw error;
       return data;
     },
@@ -55,12 +56,42 @@ export default function AdminFeeds() {
     }));
   }, [categories]);
 
+  const getCategoryName = (catId: string | null) => {
+    if (!catId || !categories) return null;
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return null;
+    if (cat.parent_id) {
+      const parent = categories.find(c => c.id === cat.parent_id);
+      return parent ? `${parent.name} › ${cat.name}` : cat.name;
+    }
+    return cat.name;
+  };
+
+  const getArticleCategoryId = (article: any): string => {
+    // Priority: manually selected > feed source category
+    if (articleCategoryMap[article.id]) return articleCategoryMap[article.id];
+    if (article.feed_sources?.category_id) return article.feed_sources.category_id;
+    return "";
+  };
+
+  const CategorySelect = ({ value, onChange, className = "" }: { value: string; onChange: (v: string) => void; className?: string }) => (
+    <select value={value} onChange={e => onChange(e.target.value)} className={`px-2 py-1 rounded border border-input bg-background text-xs ${className}`}>
+      <option value="">ক্যাটাগরি নির্বাচন</option>
+      {categoryTree.map(parent => (
+        <optgroup key={parent.id} label={`${parent.name} (${parent.type})`}>
+          <option value={parent.id}>{parent.name}</option>
+          {parent.children.map(child => (
+            <option key={child.id} value={child.id}>↳ {child.name}</option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+
   const addFeed = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("feed_sources").insert({
-        name: form.name,
-        url: form.url,
-        type: form.type,
+        name: form.name, url: form.url, type: form.type,
         fetch_interval_minutes: form.fetch_interval_minutes,
         category_id: form.category_id || null,
       });
@@ -87,17 +118,14 @@ export default function AdminFeeds() {
       const { error } = await supabase.from("feed_sources").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-feeds"] });
-      toast.success("মুছে ফেলা হয়েছে");
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-feeds"] }); toast.success("মুছে ফেলা হয়েছে"); },
   });
 
-  // Article mutations
   const updateArticle = useMutation({
-    mutationFn: async ({ id, title, content, excerpt }: { id: string; title: string; content: string; excerpt: string }) => {
+    mutationFn: async ({ id, title, content, excerpt, category_id }: { id: string; title: string; content: string; excerpt: string; category_id: string }) => {
       const { error } = await supabase.from("fetched_articles").update({ title, content, excerpt }).eq("id", id);
       if (error) throw error;
+      if (category_id) setArticleCategoryMap(p => ({ ...p, [id]: category_id }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-fetched-articles"] });
@@ -119,27 +147,29 @@ export default function AdminFeeds() {
     },
   });
 
+  const publishArticle = async (article: any) => {
+    const catId = getArticleCategoryId(article);
+    const slug = article.title.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, "-").replace(/^-|-$/g, "") || `post-${Date.now()}`;
+    const { error: postErr } = await supabase.from("posts").insert({
+      title: article.title,
+      slug: slug + "-" + Date.now(),
+      content: article.content || "",
+      excerpt: article.excerpt || "",
+      featured_image: article.featured_image || null,
+      category_id: catId || null,
+      status: "published",
+    });
+    if (postErr && !postErr.message.includes("duplicate")) throw postErr;
+    await supabase.from("fetched_articles").update({ status: "published" }).eq("id", article.id);
+  };
+
   const toggleArticlePublish = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const newStatus = status === "published" ? "fetched" : "published";
-      const { error } = await supabase.from("fetched_articles").update({ status: newStatus }).eq("id", id);
-      if (error) throw error;
-
-      // If publishing, also create/update post
-      if (newStatus === "published") {
+      if (status === "published") {
+        await supabase.from("fetched_articles").update({ status: "fetched" }).eq("id", id);
+      } else {
         const article = articles?.find(a => a.id === id);
-        if (article) {
-          const slug = article.title.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, "-").replace(/^-|-$/g, "") || `post-${Date.now()}`;
-          const { error: postErr } = await supabase.from("posts").insert({
-            title: article.title,
-            slug: slug + "-" + Date.now(),
-            content: article.content || "",
-            excerpt: article.excerpt || "",
-            featured_image: article.featured_image || null,
-            status: "published",
-          });
-          if (postErr && !postErr.message.includes("duplicate")) throw postErr;
-        }
+        if (article) await publishArticle(article);
       }
     },
     onSuccess: () => {
@@ -153,16 +183,7 @@ export default function AdminFeeds() {
     mutationFn: async () => {
       const pending = articles?.filter(a => a.status !== "published") ?? [];
       for (const article of pending) {
-        const slug = article.title.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, "-").replace(/^-|-$/g, "") || `post-${Date.now()}`;
-        await supabase.from("posts").insert({
-          title: article.title,
-          slug: slug + "-" + Date.now(),
-          content: article.content || "",
-          excerpt: article.excerpt || "",
-          featured_image: article.featured_image || null,
-          status: "published",
-        });
-        await supabase.from("fetched_articles").update({ status: "published" }).eq("id", article.id);
+        await publishArticle(article);
       }
     },
     onSuccess: () => {
@@ -187,29 +208,17 @@ export default function AdminFeeds() {
     }
   };
 
-  const getCategoryName = (catId: string | null) => {
-    if (!catId || !categories) return null;
-    const cat = categories.find(c => c.id === catId);
-    if (!cat) return null;
-    if (cat.parent_id) {
-      const parent = categories.find(c => c.id === cat.parent_id);
-      return parent ? `${parent.name} › ${cat.name}` : cat.name;
-    }
-    return cat.name;
-  };
-
   const startEdit = (a: any) => {
     setEditingArticle(a.id);
-    setEditForm({ title: a.title, content: a.content || "", excerpt: a.excerpt || "" });
+    setEditForm({ title: a.title, content: a.content || "", excerpt: a.excerpt || "", category_id: getArticleCategoryId(a) });
   };
 
   return (
     <div>
       <h1 className="font-heading font-bold text-2xl mb-6">⚡ ফিড সোর্স ও URL ফেচার</h1>
 
-      {/* Cron status */}
       <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 mb-4 text-sm text-green-700 dark:text-green-400">
-        ✅ অটো-ফেচ সক্রিয় — প্রতি ৫ মিনিটে স্বয়ংক্রিয়ভাবে ফিড চেক হচ্ছে। এডমিন প্যানেল বন্ধ থাকলেও কাজ করবে।
+        ✅ অটো-ফেচ সক্রিয় — প্রতি ৫ মিনিটে স্বয়ংক্রিয়ভাবে ফিড চেক হচ্ছে।
       </div>
 
       {/* Add form */}
@@ -222,17 +231,7 @@ export default function AdminFeeds() {
             <option value="rss">RSS ফিড</option>
             <option value="scrape">URL স্ক্র্যাপ</option>
           </select>
-          <select value={form.category_id} onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))} className="px-3 py-2 rounded-lg border border-input bg-background text-sm">
-            <option value="">ক্যাটাগরি নির্বাচন</option>
-            {categoryTree.map(parent => (
-              <optgroup key={parent.id} label={`${parent.name} (${parent.type})`}>
-                <option value={parent.id}>{parent.name}</option>
-                {parent.children.map(child => (
-                  <option key={child.id} value={child.id}>↳ {child.name}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          <CategorySelect value={form.category_id} onChange={v => setForm(p => ({ ...p, category_id: v }))} className="px-3 py-2 rounded-lg text-sm" />
           <div className="flex items-center gap-2">
             <label className="text-xs text-muted-foreground whitespace-nowrap">ইন্টারভাল (মিনিট):</label>
             <input type="number" value={form.fetch_interval_minutes} onChange={e => setForm(p => ({ ...p, fetch_interval_minutes: parseInt(e.target.value) || 5 }))} min={1} className="w-20 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
@@ -287,7 +286,7 @@ export default function AdminFeeds() {
         )}
       </div>
 
-      {/* Fetched articles with full CRUD */}
+      {/* Fetched articles */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-2.5 bg-muted border-b border-border flex items-center justify-between">
           <span className="font-heading font-semibold text-sm">
@@ -297,7 +296,6 @@ export default function AdminFeeds() {
             <button
               onClick={() => setAutoPublish(!autoPublish)}
               className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium ${autoPublish ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-muted text-muted-foreground"}`}
-              title="অটো প্রকাশ অন/অফ"
             >
               {autoPublish ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
               অটো প্রকাশ {autoPublish ? "অন" : "অফ"}
@@ -317,34 +315,20 @@ export default function AdminFeeds() {
             {articles.map(a => (
               <div key={a.id} className="px-4 py-3">
                 {editingArticle === a.id ? (
-                  /* Edit mode */
                   <div className="space-y-2">
-                    <input
-                      value={editForm.title}
-                      onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder="শিরোনাম"
-                    />
-                    <textarea
-                      value={editForm.excerpt}
-                      onChange={e => setEditForm(p => ({ ...p, excerpt: e.target.value }))}
-                      rows={2}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder="সারসংক্ষেপ"
-                    />
-                    <textarea
-                      value={editForm.content}
-                      onChange={e => setEditForm(p => ({ ...p, content: e.target.value }))}
-                      rows={5}
-                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      placeholder="কন্টেন্ট"
-                    />
+                    <input value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" placeholder="শিরোনাম" />
+                    <textarea value={editForm.excerpt} onChange={e => setEditForm(p => ({ ...p, excerpt: e.target.value }))}
+                      rows={2} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" placeholder="সারসংক্ষেপ" />
+                    <textarea value={editForm.content} onChange={e => setEditForm(p => ({ ...p, content: e.target.value }))}
+                      rows={5} className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" placeholder="কন্টেন্ট" />
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-muted-foreground">ক্যাটাগরি:</label>
+                      <CategorySelect value={editForm.category_id} onChange={v => setEditForm(p => ({ ...p, category_id: v }))} />
+                    </div>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => updateArticle.mutate({ id: a.id, ...editForm })}
-                        disabled={updateArticle.isPending}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-medium"
-                      >
+                      <button onClick={() => updateArticle.mutate({ id: a.id, ...editForm })} disabled={updateArticle.isPending}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-medium">
                         <Check className="h-3 w-3" /> সেভ
                       </button>
                       <button onClick={() => setEditingArticle(null)} className="flex items-center gap-1 px-3 py-1.5 rounded bg-muted text-xs">
@@ -353,37 +337,47 @@ export default function AdminFeeds() {
                     </div>
                   </div>
                 ) : (
-                  /* View mode */
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {a.featured_image && (
-                        <img src={a.featured_image} alt="" className="w-12 h-9 object-cover rounded shrink-0" />
-                      )}
+                      {a.featured_image && <img src={a.featured_image} alt="" className="w-12 h-9 object-cover rounded shrink-0" />}
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{a.title}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {(a as any).feed_sources?.name} • {new Date(a.created_at).toLocaleString("bn-BD")}
-                        </p>
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground flex-wrap">
+                          <span>{(a as any).feed_sources?.name}</span>
+                          <span>•</span>
+                          <span>{new Date(a.created_at).toLocaleString("bn-BD")}</span>
+                          {getArticleCategoryId(a) && (
+                            <>
+                              <span>•</span>
+                              <span className="text-primary flex items-center gap-0.5">
+                                <FolderOpen className="h-2.5 w-2.5" />
+                                {getCategoryName(getArticleCategoryId(a))}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {/* Inline category select */}
+                      <CategorySelect
+                        value={getArticleCategoryId(a)}
+                        onChange={v => setArticleCategoryMap(p => ({ ...p, [a.id]: v }))}
+                        className="max-w-[120px]"
+                      />
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${a.status === "published" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"}`}>
                         {a.status === "published" ? "প্রকাশিত" : "অপেক্ষায়"}
                       </span>
-                      <button onClick={() => toggleArticlePublish.mutate({ id: a.id, status: a.status })} className="p-1.5 hover:bg-muted rounded" title={a.status === "published" ? "আনপাবলিশ" : "প্রকাশ করুন"}>
+                      <button onClick={() => toggleArticlePublish.mutate({ id: a.id, status: a.status })} className="p-1.5 hover:bg-muted rounded">
                         {a.status === "published" ? <ToggleRight className="h-3.5 w-3.5 text-green-600" /> : <ToggleLeft className="h-3.5 w-3.5" />}
                       </button>
-                      <button onClick={() => startEdit(a)} className="p-1.5 hover:bg-muted rounded" title="এডিট">
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
+                      <button onClick={() => startEdit(a)} className="p-1.5 hover:bg-muted rounded"><Edit2 className="h-3.5 w-3.5" /></button>
                       <button onClick={async () => {
                         toast.info("AI প্রসেসিং...");
                         const { data, error } = await supabase.functions.invoke("ai-process", { body: { title: a.title, content: a.content || a.excerpt || "" } });
                         if (error) toast.error("AI ব্যর্থ"); else toast.success(`সারসংক্ষেপ: ${data?.data?.summary?.slice(0, 80)}...`);
-                      }} className="p-1.5 hover:bg-primary/10 rounded text-primary" title="AI সারসংক্ষেপ">
-                        <Sparkles className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => { if (confirm("মুছে ফেলতে চান?")) deleteArticle.mutate(a.id); }} className="p-1.5 hover:bg-destructive/10 rounded text-destructive" title="মুছুন">
+                      }} className="p-1.5 hover:bg-primary/10 rounded text-primary"><Sparkles className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => { if (confirm("মুছে ফেলতে চান?")) deleteArticle.mutate(a.id); }} className="p-1.5 hover:bg-destructive/10 rounded text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -396,7 +390,6 @@ export default function AdminFeeds() {
           <p className="p-4 text-sm text-muted-foreground">এখনো কোনো আর্টিকেল ফেচ হয়নি</p>
         )}
 
-        {/* Load more */}
         {articles && totalArticleCount && articles.length < totalArticleCount && (
           <div className="p-3 text-center border-t border-border">
             <button onClick={() => setArticleLimit(l => l + 50)} className="text-xs text-primary hover:underline">

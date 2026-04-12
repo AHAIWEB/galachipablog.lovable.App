@@ -25,13 +25,26 @@ Deno.serve(async (req) => {
       .eq('is_active', true);
 
     for (const feed of (feeds || [])) {
+      // Normalize URL
+      let feedUrl = (feed.url || '').trim();
+      if (!feedUrl || feedUrl.length < 4) {
+        results.push({ feed: feed.name, error: 'Empty or invalid URL' });
+        continue;
+      }
+      if (!/^https?:\/\//i.test(feedUrl)) {
+        feedUrl = 'https://' + feedUrl;
+      }
+      try { new URL(feedUrl); } catch {
+        results.push({ feed: feed.name, error: `Invalid URL: '${feed.url}'` });
+        continue;
+      }
       const lastFetched = feed.last_fetched_at ? new Date(feed.last_fetched_at) : new Date(0);
       const minutesSince = (now.getTime() - lastFetched.getTime()) / 60000;
       if (minutesSince < feed.fetch_interval_minutes) continue;
 
       try {
         if (feed.type === 'rss') {
-          const articles = await fetchRSS(feed.url);
+          const articles = await fetchRSS(feedUrl);
           let inserted = 0;
           for (const article of articles.slice(0, 20)) {
             const { data: existing } = await supabase
@@ -66,13 +79,13 @@ Deno.serve(async (req) => {
           results.push({ feed: feed.name, type: 'rss', inserted });
         } else {
           // scrape type
-          const scraped = await scrapeUrl(feed.url);
+          const scraped = await scrapeUrl(feedUrl);
           if (scraped) {
             const { data: existing } = await supabase
               .from('fetched_articles')
               .select('id')
               .eq('source_id', feed.id)
-              .eq('original_url', feed.url)
+              .eq('original_url', feedUrl)
               .maybeSingle();
             if (!existing) {
               await supabase.from('fetched_articles').insert({
@@ -81,7 +94,7 @@ Deno.serve(async (req) => {
                 content: scraped.content,
                 excerpt: scraped.excerpt,
                 featured_image: scraped.image,
-                original_url: feed.url,
+                original_url: feedUrl,
                 status: 'fetched',
               });
               // Auto-publish as post

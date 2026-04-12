@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Users, CreditCard, Eye, Layout, Link2, Rss, Archive } from "lucide-react";
+import { FileText, Users, CreditCard, Eye, Layout, Link2, Rss, Archive, ExternalLink } from "lucide-react";
 
 export default function AdminDashboard() {
   const { data: postCount } = useQuery({
@@ -79,6 +79,18 @@ export default function AdminDashboard() {
     },
   });
 
+  const { data: fetchedArticles = [] } = useQuery({
+    queryKey: ["admin-fetched-articles-dash"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("fetched_articles")
+        .select("id, title, status, created_at, featured_image, feed_sources(name)")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data ?? [];
+    },
+  });
+
   const stats = [
     { label: "মোট পোস্ট", value: postCount ?? 0, icon: FileText, color: "bg-primary" },
     { label: "ক্যাটাগরি", value: categoryCount ?? 0, icon: Users, color: "bg-secondary" },
@@ -135,6 +147,33 @@ export default function AdminDashboard() {
             </div>
           );
         })}
+      </div>
+
+      {/* Fetched Articles */}
+      <div className="bg-card rounded-xl border border-border mb-8">
+        <div className="px-4 py-2.5 border-b border-border bg-muted">
+          <h3 className="font-heading font-semibold text-sm">⚡ সর্বশেষ ফেচ করা পোস্ট ({fetchedArticles.length})</h3>
+        </div>
+        <div className="divide-y divide-border">
+          {fetchedArticles.length > 0 ? fetchedArticles.map(a => (
+            <div key={a.id} className="px-4 py-2.5 flex items-center gap-3">
+              {a.featured_image && (
+                <img src={a.featured_image} alt="" className="w-10 h-8 object-cover rounded shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{a.title}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {(a as any).feed_sources?.name} • {a.status} • {new Date(a.created_at).toLocaleString("bn-BD")}
+                </p>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${a.status === 'published' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'}`}>
+                {a.status === 'published' ? 'প্রকাশিত' : 'অপেক্ষায়'}
+              </span>
+            </div>
+          )) : (
+            <p className="p-4 text-xs text-muted-foreground">কোনো ফেচ করা আর্টিকেল নেই</p>
+          )}
+        </div>
       </div>
 
       <div className="bg-card rounded-xl border border-border">

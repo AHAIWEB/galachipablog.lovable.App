@@ -149,6 +149,33 @@ export default function AdminDashboard() {
         })}
       </div>
 
+      {/* Fetched Articles */}
+      <div className="bg-card rounded-xl border border-border mb-8">
+        <div className="px-4 py-2.5 border-b border-border bg-muted">
+          <h3 className="font-heading font-semibold text-sm">⚡ সর্বশেষ ফেচ করা পোস্ট ({fetchedArticles.length})</h3>
+        </div>
+        <div className="divide-y divide-border">
+          {fetchedArticles.length > 0 ? fetchedArticles.map(a => (
+            <div key={a.id} className="px-4 py-2.5 flex items-center gap-3">
+              {a.featured_image && (
+                <img src={a.featured_image} alt="" className="w-10 h-8 object-cover rounded shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{a.title}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {(a as any).feed_sources?.name} • {a.status} • {new Date(a.created_at).toLocaleString("bn-BD")}
+                </p>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${a.status === 'published' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'}`}>
+                {a.status === 'published' ? 'প্রকাশিত' : 'অপেক্ষায়'}
+              </span>
+            </div>
+          )) : (
+            <p className="p-4 text-xs text-muted-foreground">কোনো ফেচ করা আর্টিকেল নেই</p>
+          )}
+        </div>
+      </div>
+
       <div className="bg-card rounded-xl border border-border">
         <div className="px-4 py-3 border-b border-border">
           <h2 className="font-heading font-semibold">সর্বশেষ অ্যাক্টিভিটি</h2>

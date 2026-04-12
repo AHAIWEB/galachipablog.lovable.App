@@ -93,38 +93,37 @@ export default function MasonryGrid() {
   if (allPosts.length === 0) return null;
 
   return (
-    <div className="columns-1 sm:columns-2 lg:columns-3 gap-3 space-y-3 stagger-fade">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-fade">
       {allPosts.map((post, i) => {
         const catName = (post as any).categories?.name;
         const catType = (post as any).categories?.type;
-        const aspect = aspectClasses[i % aspectClasses.length];
 
         return (
           <Link
             key={post.id}
             to={`/post/${post.slug}`}
-            className="relative block rounded-xl overflow-hidden group hover-lift break-inside-avoid mb-3"
+            className="block rounded-xl overflow-hidden group hover-lift bg-card border border-border shadow-sm"
           >
-            <div className={aspect}>
+            <div className="aspect-video relative">
               <img
                 src={post.featured_image || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&h=400&fit=crop"}
                 alt={post.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 loading="lazy"
               />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-transparent to-transparent" />
-            <div className="absolute top-2 left-2">
               {catName && (
-                <span className={catType === "news" ? "tag-news" : catType === "blog" ? "tag-blog" : "tag-directory"}>
+                <span className={`absolute top-2 left-2 ${catType === "news" ? "tag-news" : catType === "blog" ? "tag-blog" : "tag-directory"}`}>
                   {catName}
                 </span>
               )}
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-2.5">
-              <h3 className="text-xs md:text-sm font-heading font-bold text-white leading-snug drop-shadow-lg line-clamp-2">
+            <div className="p-3">
+              <h3 className="text-sm font-heading font-bold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                 {post.title}
               </h3>
+              {post.excerpt && (
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{post.excerpt}</p>
+              )}
             </div>
           </Link>
         );

@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, ChevronDown, Menu, X, User, Shield } from "lucide-react";
+import { Search, ChevronDown, Menu, X, User, Shield, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import SearchOverlay from "@/components/SearchOverlay";
 
-type MenuType = "news" | "blog" | "directory" | null;
+type MenuType = "news" | "blog" | "directory" | "weblinks" | null;
 
 type CategoryItem = { id: string; name: string; slug: string };
 type CategoryGroup = {
@@ -76,12 +76,51 @@ function useLatestPosts(type: "news" | "blog" | "directory", enabled: boolean) {
   });
 }
 
-function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }) {
+function WebLinksDropdown({ onClose }: { onClose: () => void }) {
+  const { data: links = [] } = useQuery({
+    queryKey: ["menu-website-links"],
+    queryFn: async () => {
+      const { data } = await supabase.from("website_links").select("id, title, url, favicon_url").eq("status", "active").order("sort_order").order("title").limit(42);
+      return data ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  return (
+    <div className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up" onMouseLeave={onClose}>
+      <div className="container mx-auto p-4 max-h-[70vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-heading font-bold text-sm">🌐 বাংলাদেশের পত্রিকা ও ওয়েবসাইট</h3>
+          <div className="flex items-center gap-2">
+            <Link to="/website-links" onClick={onClose} className="text-xs text-primary hover:underline">সব দেখুন →</Link>
+            <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X className="h-4 w-4" /></button>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-1">
+          {links.map(link => (
+            <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1.5 p-3 rounded-lg hover:bg-muted/50 transition-colors group">
+              <div className="w-12 h-9 flex items-center justify-center">
+                {link.favicon_url ? (
+                  <img src={link.favicon_url} alt={link.title} className="max-w-full max-h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                ) : (
+                  <Globe className="h-6 w-6 text-muted-foreground" />
+                )}
+              </div>
+              <span className="text-[10px] text-center leading-tight line-clamp-2 group-hover:text-primary transition-colors">{link.title}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MegaDropdown({ type, onClose }: { type: "news" | "blog" | "directory"; onClose: () => void }) {
   const [search, setSearch] = useState("");
   const [hoveredCatId, setHoveredCatId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const { data: categories = [] } = useDynamicCategories(type!);
-  const { data: latestPosts = [] } = useLatestPosts(type!, !!type);
+  const { data: categories = [] } = useDynamicCategories(type);
+  const { data: latestPosts = [] } = useLatestPosts(type, true);
 
   // Fetch posts for hovered category
   const { data: catPosts = [] } = useQuery({
@@ -298,13 +337,27 @@ export default function SiteHeader() {
                 </button>
               </div>
             ))}
-            <Link to="/website-links" className="px-4 py-2.5 text-sm font-heading font-semibold text-foreground hover:bg-muted rounded-lg md:rounded-none transition-colors w-full md:w-auto text-left block md:inline">🌐 ওয়েবসাইট লিংক</Link>
+            <div
+              className="relative w-full md:w-auto"
+              onMouseEnter={() => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); setOpenMenu("weblinks" as any); }}
+              onMouseLeave={handleMenuLeave}
+            >
+              <Link
+                to="/website-links"
+                className={`px-4 py-2.5 text-sm font-heading font-semibold rounded-lg md:rounded-none transition-colors w-full md:w-auto text-left block md:inline flex items-center gap-1 ${
+                  openMenu === ("weblinks" as any) ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
+                }`}
+              >
+                🌐 ওয়েবসাইট লিংক
+              </Link>
+            </div>
             <Link to="/about" className="px-4 py-2.5 text-sm font-heading font-semibold text-foreground hover:bg-muted rounded-lg md:rounded-none transition-colors w-full md:w-auto text-left block md:inline">আমাদের সম্পর্কে</Link>
           </div>
         </div>
       </nav>
 
-      {openMenu && <MegaDropdown type={openMenu} onClose={() => setOpenMenu(null)} />}
+      {openMenu && openMenu !== "weblinks" && <MegaDropdown type={openMenu} onClose={() => setOpenMenu(null)} />}
+      {openMenu === "weblinks" && <WebLinksDropdown onClose={() => setOpenMenu(null)} />}
       {openMenu && (
         <div className="fixed inset-0 bg-foreground/20 z-40" onClick={() => setOpenMenu(null)} style={{ top: "110px" }} />
       )}

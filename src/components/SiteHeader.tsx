@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, ChevronDown, Menu, X, User, Shield } from "lucide-react";
+import { Search, ChevronDown, Menu, X, User, Shield, Globe } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";

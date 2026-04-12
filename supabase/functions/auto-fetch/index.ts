@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
 
       try {
         if (feed.type === 'rss') {
-          const articles = await fetchRSS(feed.url);
+          const articles = await fetchRSS(feedUrl);
           let inserted = 0;
           for (const article of articles.slice(0, 20)) {
             const { data: existing } = await supabase
@@ -79,13 +79,13 @@ Deno.serve(async (req) => {
           results.push({ feed: feed.name, type: 'rss', inserted });
         } else {
           // scrape type
-          const scraped = await scrapeUrl(feed.url);
+          const scraped = await scrapeUrl(feedUrl);
           if (scraped) {
             const { data: existing } = await supabase
               .from('fetched_articles')
               .select('id')
               .eq('source_id', feed.id)
-              .eq('original_url', feed.url)
+              .eq('original_url', feedUrl)
               .maybeSingle();
             if (!existing) {
               await supabase.from('fetched_articles').insert({
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
                 content: scraped.content,
                 excerpt: scraped.excerpt,
                 featured_image: scraped.image,
-                original_url: feed.url,
+                original_url: feedUrl,
                 status: 'fetched',
               });
               // Auto-publish as post

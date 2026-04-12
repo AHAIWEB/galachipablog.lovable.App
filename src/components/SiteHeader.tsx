@@ -78,9 +78,28 @@ function useLatestPosts(type: "news" | "blog" | "directory", enabled: boolean) {
 
 function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }) {
   const [search, setSearch] = useState("");
+  const [hoveredCatId, setHoveredCatId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const { data: categories = [] } = useDynamicCategories(type!);
   const { data: latestPosts = [] } = useLatestPosts(type!, !!type);
+
+  // Fetch posts for hovered category
+  const { data: catPosts = [] } = useQuery({
+    queryKey: ["mega-cat-posts", hoveredCatId],
+    queryFn: async () => {
+      if (!hoveredCatId) return [];
+      const { data } = await supabase
+        .from("posts")
+        .select("id, title, slug, featured_image")
+        .eq("status", "published")
+        .eq("category_id", hoveredCatId)
+        .order("created_at", { ascending: false })
+        .limit(4);
+      return data ?? [];
+    },
+    enabled: !!hoveredCatId,
+    staleTime: 60000,
+  });
 
   useEffect(() => {
     searchRef.current?.focus();
@@ -98,6 +117,8 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
   const scrollToLetter = (letter: string) => {
     document.getElementById(`letter-${type}-${letter}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  const displayPosts = hoveredCatId ? catPosts : latestPosts;
 
   return (
     <div
@@ -150,7 +171,12 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
                 <ul className="mt-1 space-y-0.5">
                   {cat.items.map(item => (
                     <li key={item.slug}>
-                      <Link to={`/category/${item.slug}`} onClick={onClose} className="text-sm text-foreground/80 hover:text-primary hover:underline block py-0.5 transition-colors">
+                      <Link
+                        to={`/category/${item.slug}`}
+                        onClick={onClose}
+                        onMouseEnter={() => setHoveredCatId(item.id)}
+                        className={`text-sm text-foreground/80 hover:text-primary hover:underline block py-0.5 transition-colors ${hoveredCatId === item.id ? "text-primary font-medium" : ""}`}
+                      >
                         {item.name}
                       </Link>
                     </li>
@@ -165,12 +191,14 @@ function MegaDropdown({ type, onClose }: { type: MenuType; onClose: () => void }
           )}
         </div>
 
-        {/* Latest posts sidebar */}
-        {latestPosts.length > 0 && (
+        {/* Posts sidebar - shows hovered category posts or latest */}
+        {displayPosts.length > 0 && (
           <div className="hidden lg:block w-56 shrink-0 border-l border-border pl-4">
-            <h4 className="font-heading font-bold text-xs text-muted-foreground mb-3">সর্বশেষ</h4>
+            <h4 className="font-heading font-bold text-xs text-muted-foreground mb-3">
+              {hoveredCatId ? "এই ক্যাটাগরির পোস্ট" : "সর্বশেষ"}
+            </h4>
             <div className="space-y-3">
-              {latestPosts.map(p => (
+              {displayPosts.map(p => (
                 <Link key={p.id} to={`/post/${p.slug}`} onClick={onClose} className="block group">
                   {p.featured_image && (
                     <img src={p.featured_image} alt="" className="w-full h-20 object-cover rounded-lg mb-1" />

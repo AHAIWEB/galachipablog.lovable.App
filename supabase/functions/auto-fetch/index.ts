@@ -163,6 +163,30 @@ Deno.serve(async (req) => {
   }
 });
 
+async function autoPublishPost(supabase: any, article: { title: string; content: string; excerpt: string; featured_image: string; category_id: string | null }) {
+  try {
+    const slug = article.title.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 200) + '-' + Date.now();
+    const { data: existing } = await supabase
+      .from('posts')
+      .select('id')
+      .eq('title', article.title)
+      .maybeSingle();
+    if (existing) return;
+    await supabase.from('posts').insert({
+      title: article.title,
+      slug,
+      content: article.content || null,
+      excerpt: (article.excerpt || '').slice(0, 500) || null,
+      featured_image: article.featured_image || null,
+      category_id: article.category_id,
+      status: 'published',
+      is_featured: false,
+    });
+  } catch (e) {
+    console.error('Auto-publish error:', (e as Error).message);
+  }
+}
+
 async function fetchRSS(url: string) {
   const resp = await fetch(url, {
     headers: { 'User-Agent': 'GalachipaBlog/1.0', Accept: 'application/rss+xml, application/xml, text/xml' },

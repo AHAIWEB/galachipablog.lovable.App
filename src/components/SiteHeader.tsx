@@ -356,7 +356,8 @@ export default function SiteHeader() {
         </div>
       </nav>
 
-      {openMenu && <MegaDropdown type={openMenu} onClose={() => setOpenMenu(null)} />}
+      {openMenu && openMenu !== "weblinks" && <MegaDropdown type={openMenu} onClose={() => setOpenMenu(null)} />}
+      {openMenu === "weblinks" && <WebLinksDropdown onClose={() => setOpenMenu(null)} />}
       {openMenu && (
         <div className="fixed inset-0 bg-foreground/20 z-40" onClick={() => setOpenMenu(null)} style={{ top: "110px" }} />
       )}

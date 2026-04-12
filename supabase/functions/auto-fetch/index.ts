@@ -51,7 +51,17 @@ Deno.serve(async (req) => {
               original_url: article.link || '',
               status: 'fetched',
             });
-            if (!error) inserted++;
+            if (!error) {
+              inserted++;
+              // Auto-publish as post
+              await autoPublishPost(supabase, {
+                title: article.title || 'Untitled',
+                content: article.content || '',
+                excerpt: article.excerpt || '',
+                featured_image: article.image || '',
+                category_id: feed.category_id || null,
+              });
+            }
           }
           results.push({ feed: feed.name, type: 'rss', inserted });
         } else {
@@ -73,6 +83,14 @@ Deno.serve(async (req) => {
                 featured_image: scraped.image,
                 original_url: feed.url,
                 status: 'fetched',
+              });
+              // Auto-publish as post
+              await autoPublishPost(supabase, {
+                title: scraped.title,
+                content: scraped.content,
+                excerpt: scraped.excerpt,
+                featured_image: scraped.image,
+                category_id: feed.category_id || null,
               });
             }
             results.push({ feed: feed.name, type: 'scrape', inserted: existing ? 0 : 1 });

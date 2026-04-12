@@ -25,6 +25,19 @@ Deno.serve(async (req) => {
       .eq('is_active', true);
 
     for (const feed of (feeds || [])) {
+      // Normalize URL
+      let feedUrl = (feed.url || '').trim();
+      if (!feedUrl || feedUrl.length < 4) {
+        results.push({ feed: feed.name, error: 'Empty or invalid URL' });
+        continue;
+      }
+      if (!/^https?:\/\//i.test(feedUrl)) {
+        feedUrl = 'https://' + feedUrl;
+      }
+      try { new URL(feedUrl); } catch {
+        results.push({ feed: feed.name, error: `Invalid URL: '${feed.url}'` });
+        continue;
+      }
       const lastFetched = feed.last_fetched_at ? new Date(feed.last_fetched_at) : new Date(0);
       const minutesSince = (now.getTime() - lastFetched.getTime()) / 60000;
       if (minutesSince < feed.fetch_interval_minutes) continue;

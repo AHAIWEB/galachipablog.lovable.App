@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import SearchOverlay from "@/components/SearchOverlay";
 
-type MenuType = "news" | "blog" | "directory" | null;
+type MenuType = "news" | "blog" | "directory" | "weblinks" | null;
 
 type CategoryItem = { id: string; name: string; slug: string };
 type CategoryGroup = {

@@ -15,6 +15,42 @@ type Widget = {
   is_active: boolean;
 };
 
+function CategorySpecificPostsWidget({ config }: { config: any }) {
+  const categoryId = config?.category_id;
+  const limit = config?.limit || 5;
+  const { data: posts = [] } = useQuery({
+    queryKey: ["widget-cat-specific", categoryId, limit],
+    queryFn: async () => {
+      if (!categoryId) return [];
+      const { data } = await supabase
+        .from("posts")
+        .select("id, title, slug, featured_image, categories(name)")
+        .eq("status", "published")
+        .eq("category_id", categoryId)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      return data ?? [];
+    },
+    enabled: !!categoryId,
+  });
+
+  if (!categoryId) return <p className="p-3 text-xs text-muted-foreground">কনফিগে category_id দিন</p>;
+
+  return (
+    <div className="divide-y divide-border">
+      {posts.map((p, i) => (
+        <Link key={p.id} to={`/post/${p.slug}`} className="flex gap-2 p-2.5 hover:bg-muted/50 transition-colors group">
+          {p.featured_image && (
+            <img src={p.featured_image} alt="" className="w-14 h-10 object-cover rounded shrink-0" />
+          )}
+          <p className="text-xs font-heading font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2 flex-1">{p.title}</p>
+        </Link>
+      ))}
+      {posts.length === 0 && <p className="p-3 text-xs text-muted-foreground">পোস্ট নেই</p>}
+    </div>
+  );
+}
+
 function LatestPostsWidget({ config }: { config: any }) {
   const limit = config?.limit || 5;
   const { data: posts = [] } = useQuery({
@@ -222,6 +258,7 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
       case "news": return <CategoryPostsWidget config={widget.config} type="news" />;
       case "blog": return <CategoryPostsWidget config={widget.config} type="blog" />;
       case "directory": return <CategoryPostsWidget config={widget.config} type="directory" />;
+      case "category_posts": return <CategorySpecificPostsWidget config={widget.config} />;
       case "photo_gallery": return <PhotoGalleryWidget config={widget.config} />;
       case "website_links": return <WebsiteLinksWidget config={widget.config} />;
       case "business_cards": return <BusinessCardsWidget config={widget.config} />;

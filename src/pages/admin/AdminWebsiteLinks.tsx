@@ -2,12 +2,13 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, ExternalLink, Globe, Search, Download, CheckSquare, Square } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Globe, Search, Download, CheckSquare, Square, ToggleLeft, ToggleRight, CheckCircle, XCircle, Clock } from "lucide-react";
 
 export default function AdminWebsiteLinks() {
   const qc = useQueryClient();
   const [form, setForm] = useState({ title: "", url: "", description: "", letter: "", category_id: "" });
   const [letterFilter, setLetterFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [scrapeUrl, setScrapeUrl] = useState("");
   const [scraping, setScraping] = useState(false);
@@ -15,11 +16,12 @@ export default function AdminWebsiteLinks() {
   const [selectedScrape, setSelectedScrape] = useState<Set<number>>(new Set());
   const [scrapeCategory, setScrapeCategory] = useState("");
   const [scrapeLetter, setScrapeLetter] = useState("");
+  const [autoPublishLinks, setAutoPublishLinks] = useState(false);
 
   const { data: links, isLoading } = useQuery({
     queryKey: ["admin-website-links"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("website_links").select("*, categories(name)").order("letter").order("sort_order").order("title");
+      const { data, error } = await supabase.from("website_links").select("*, categories(name)").order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -38,12 +40,16 @@ export default function AdminWebsiteLinks() {
     return [...new Set(links.map(l => l.letter).filter(Boolean))].sort();
   }, [links]);
 
+  const pendingCount = useMemo(() => links?.filter(l => l.status === "pending").length ?? 0, [links]);
+  const activeCount = useMemo(() => links?.filter(l => l.status === "active").length ?? 0, [links]);
+
   const filtered = useMemo(() => {
     let items = links ?? [];
+    if (statusFilter !== "all") items = items.filter(l => l.status === statusFilter);
     if (letterFilter) items = items.filter(l => l.letter === letterFilter);
     if (search) items = items.filter(l => l.title.toLowerCase().includes(search.toLowerCase()) || l.url.toLowerCase().includes(search.toLowerCase()));
     return items;
-  }, [links, letterFilter, search]);
+  }, [links, letterFilter, search, statusFilter]);
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -52,6 +58,7 @@ export default function AdminWebsiteLinks() {
       const { error } = await supabase.from("website_links").insert({
         title: form.title, url: form.url, description: form.description || null,
         letter: form.letter || "", category_id: form.category_id || null, favicon_url,
+        status: autoPublishLinks ? "active" : "active",
       });
       if (error) throw error;
     },
@@ -71,20 +78,34 @@ export default function AdminWebsiteLinks() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-website-links"] }); toast.success("মুছে ফেলা হয়েছে"); },
   });
 
-  // Scrape links from a URL
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from("website_links").update({ status }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-website-links"] }); toast.success("স্ট্যাটাস আপডেট হয়েছে"); },
+  });
+
+  const approveAll = useMutation({
+    mutationFn: async () => {
+      const pending = links?.filter(l => l.status === "pending") ?? [];
+      for (const l of pending) {
+        await supabase.from("website_links").update({ status: "active" }).eq("id", l.id);
+      }
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-website-links"] }); toast.success("সকল পেন্ডিং লিংক অনুমোদিত"); },
+  });
+
   const handleScrape = async () => {
     if (!scrapeUrl) return;
     setScraping(true);
     setScrapedLinks([]);
     setSelectedScrape(new Set());
     try {
-      const { data, error } = await supabase.functions.invoke("scrape-links", {
-        body: { url: scrapeUrl },
-      });
+      const { data, error } = await supabase.functions.invoke("scrape-links", { body: { url: scrapeUrl } });
       if (error) throw error;
       if (data?.links) {
         setScrapedLinks(data.links);
-        // Select all by default
         setSelectedScrape(new Set(data.links.map((_: any, i: number) => i)));
         toast.success(`${data.links.length}টি লিংক পাওয়া গেছে`);
       }
@@ -97,19 +118,16 @@ export default function AdminWebsiteLinks() {
   const importSelected = async () => {
     const toImport = scrapedLinks.filter((_, i) => selectedScrape.has(i));
     if (toImport.length === 0) return toast.error("লিংক সিলেক্ট করুন");
-    
     let success = 0;
     for (const link of toImport) {
       const { error } = await supabase.from("website_links").insert({
-        title: link.title,
-        url: link.url,
-        favicon_url: link.favicon_url,
-        letter: scrapeLetter || "",
-        category_id: scrapeCategory || null,
+        title: link.title, url: link.url, favicon_url: link.favicon_url,
+        letter: scrapeLetter || "", category_id: scrapeCategory || null,
+        status: autoPublishLinks ? "active" : "pending",
       });
       if (!error) success++;
     }
-    toast.success(`${success}টি লিংক ইমপোর্ট হয়েছে`);
+    toast.success(`${success}টি লিংক ইমপোর্ট হয়েছে${autoPublishLinks ? "" : " (অনুমোদন প্রয়োজন)"}`);
     qc.invalidateQueries({ queryKey: ["admin-website-links"] });
     setScrapedLinks([]);
     setSelectedScrape(new Set());
@@ -126,9 +144,39 @@ export default function AdminWebsiteLinks() {
   const bengaliLetters = "অ আ ই ঈ উ ঊ এ ঐ ও ঔ ক খ গ ঘ চ ছ জ ঝ ট ঠ ড ঢ ণ ত থ দ ধ ন প ফ ব ভ ম য র ল শ ষ স হ".split(" ");
   const englishLetters = "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z".split(" ");
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "active": return <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"><CheckCircle className="h-2.5 w-2.5" /> সক্রিয়</span>;
+      case "pending": return <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"><Clock className="h-2.5 w-2.5" /> অপেক্ষায়</span>;
+      default: return <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"><XCircle className="h-2.5 w-2.5" /> নিষ্ক্রিয়</span>;
+    }
+  };
+
   return (
     <div>
       <h1 className="font-heading font-bold text-2xl mb-6">🔗 ওয়েবসাইট লিংক আর্কাইভ</h1>
+
+      {/* Auto publish toggle + approve all */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <button
+          onClick={() => setAutoPublishLinks(!autoPublishLinks)}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border ${autoPublishLinks ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800" : "bg-card text-muted-foreground border-border"}`}
+        >
+          {autoPublishLinks ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+          অটো পাবলিশ {autoPublishLinks ? "অন" : "অফ"}
+        </button>
+        {pendingCount > 0 && (
+          <button onClick={() => approveAll.mutate()} disabled={approveAll.isPending}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground disabled:opacity-50">
+            <CheckCircle className="h-4 w-4" /> সব অনুমোদন করুন ({pendingCount})
+          </button>
+        )}
+        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="text-green-600 font-medium">{activeCount} সক্রিয়</span>
+          <span>•</span>
+          <span className="text-yellow-600 font-medium">{pendingCount} অপেক্ষায়</span>
+        </div>
+      </div>
 
       {/* Scraper section */}
       <div className="bg-card rounded-xl border border-border p-4 mb-6">
@@ -138,28 +186,22 @@ export default function AdminWebsiteLinks() {
             <input value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} placeholder="https://allbanglapaper.com"
               className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm" />
           </div>
-          <div>
-            <select value={scrapeLetter} onChange={e => setScrapeLetter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-input bg-background text-sm">
-              <option value="">অক্ষর</option>
-              <optgroup label="বাংলা">{bengaliLetters.map(l => <option key={l} value={l}>{l}</option>)}</optgroup>
-              <optgroup label="English">{englishLetters.map(l => <option key={l} value={l}>{l}</option>)}</optgroup>
-            </select>
-          </div>
-          <div>
-            <select value={scrapeCategory} onChange={e => setScrapeCategory(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-input bg-background text-sm">
-              <option value="">ক্যাটাগরি</option>
-              {categories?.filter(c => !c.parent_id).map(p => (
-                <optgroup key={p.id} label={p.name}>
-                  <option value={p.id}>{p.name}</option>
-                  {categories.filter(c => c.parent_id === p.id).map(ch => (
-                    <option key={ch.id} value={ch.id}>↳ {ch.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
+          <select value={scrapeLetter} onChange={e => setScrapeLetter(e.target.value)} className="px-3 py-2 rounded-lg border border-input bg-background text-sm">
+            <option value="">অক্ষর</option>
+            <optgroup label="বাংলা">{bengaliLetters.map(l => <option key={l} value={l}>{l}</option>)}</optgroup>
+            <optgroup label="English">{englishLetters.map(l => <option key={l} value={l}>{l}</option>)}</optgroup>
+          </select>
+          <select value={scrapeCategory} onChange={e => setScrapeCategory(e.target.value)} className="px-3 py-2 rounded-lg border border-input bg-background text-sm">
+            <option value="">ক্যাটাগরি</option>
+            {categories?.filter(c => !c.parent_id).map(p => (
+              <optgroup key={p.id} label={p.name}>
+                <option value={p.id}>{p.name}</option>
+                {categories.filter(c => c.parent_id === p.id).map(ch => (
+                  <option key={ch.id} value={ch.id}>↳ {ch.name}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
           <button onClick={handleScrape} disabled={!scrapeUrl || scraping}
             className="flex items-center gap-1 px-4 py-2 rounded-lg bg-accent text-accent-foreground text-sm font-medium disabled:opacity-50">
             <Download className="h-4 w-4" /> {scraping ? "স্ক্র্যাপ হচ্ছে..." : "স্ক্র্যাপ"}
@@ -174,7 +216,7 @@ export default function AdminWebsiteLinks() {
                 <button onClick={() => setSelectedScrape(new Set(scrapedLinks.map((_, i) => i)))} className="text-xs text-primary hover:underline">সব সিলেক্ট</button>
                 <button onClick={() => setSelectedScrape(new Set())} className="text-xs text-muted-foreground hover:underline">ক্লিয়ার</button>
                 <button onClick={importSelected} className="flex items-center gap-1 px-3 py-1 rounded bg-primary text-primary-foreground text-xs font-medium">
-                  <Plus className="h-3 w-3" /> ইমপোর্ট
+                  <Plus className="h-3 w-3" /> ইমপোর্ট {autoPublishLinks ? "" : "(পেন্ডিং)"}
                 </button>
               </div>
             </div>
@@ -246,7 +288,19 @@ export default function AdminWebsiteLinks() {
         </div>
       </div>
 
-      {/* Letter filter */}
+      {/* Status + Letter filter */}
+      <div className="flex gap-2 flex-wrap mb-3">
+        <button onClick={() => setStatusFilter("all")} className={`px-2.5 py-1 rounded text-xs font-medium ${statusFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+          সব ({links?.length ?? 0})
+        </button>
+        <button onClick={() => setStatusFilter("active")} className={`px-2.5 py-1 rounded text-xs font-medium ${statusFilter === "active" ? "bg-green-600 text-white" : "bg-muted"}`}>
+          সক্রিয় ({activeCount})
+        </button>
+        <button onClick={() => setStatusFilter("pending")} className={`px-2.5 py-1 rounded text-xs font-medium ${statusFilter === "pending" ? "bg-yellow-600 text-white" : "bg-muted"}`}>
+          অপেক্ষায় ({pendingCount})
+        </button>
+      </div>
+
       <div className="flex gap-1 flex-wrap mb-4">
         <button onClick={() => setLetterFilter("")} className={`px-2 py-1 rounded text-xs ${!letterFilter ? "bg-primary text-primary-foreground" : "bg-muted"}`}>সব</button>
         {letters.map(l => (
@@ -285,6 +339,19 @@ export default function AdminWebsiteLinks() {
                   <p className="text-xs text-muted-foreground truncate">{link.url}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {getStatusBadge(link.status)}
+                  {link.status === "pending" && (
+                    <button onClick={() => updateStatus.mutate({ id: link.id, status: "active" })}
+                      className="p-1 hover:bg-green-100 dark:hover:bg-green-900/30 rounded text-green-600" title="অনুমোদন">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  {link.status === "active" && (
+                    <button onClick={() => updateStatus.mutate({ id: link.id, status: "pending" })}
+                      className="p-1 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded text-yellow-600" title="পেন্ডিং করুন">
+                      <Clock className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <a href={link.url} target="_blank" rel="noopener" className="p-1 hover:bg-muted rounded"><ExternalLink className="h-3.5 w-3.5" /></a>
                   <button onClick={() => { if (confirm("নিশ্চিত?")) deleteMutation.mutate(link.id); }}
                     className="p-1 hover:bg-destructive/10 rounded text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>

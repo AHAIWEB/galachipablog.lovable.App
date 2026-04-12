@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Users, CreditCard, Eye, Layout, Link2, Rss, Archive } from "lucide-react";
+import { FileText, Users, CreditCard, Eye, Layout, Link2, Rss, Archive, ExternalLink } from "lucide-react";
 
 export default function AdminDashboard() {
   const { data: postCount } = useQuery({
@@ -73,6 +73,18 @@ export default function AdminDashboard() {
       const { data } = await supabase
         .from("activity_log")
         .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data ?? [];
+    },
+  });
+
+  const { data: fetchedArticles = [] } = useQuery({
+    queryKey: ["admin-fetched-articles-dash"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("fetched_articles")
+        .select("id, title, status, created_at, featured_image, feed_sources(name)")
         .order("created_at", { ascending: false })
         .limit(10);
       return data ?? [];

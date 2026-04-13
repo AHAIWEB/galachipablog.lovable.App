@@ -1,0 +1,1 @@
+UPDATE public.posts SET is_featured = true WHERE featured_image IS NOT NULL AND featured_image != '' AND is_featured = false AND status = 'published';

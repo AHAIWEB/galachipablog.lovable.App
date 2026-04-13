@@ -193,7 +193,7 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
       featured_image: article.featured_image || null,
       category_id: article.category_id,
       status: 'published',
-      is_featured: false,
+      is_featured: !!article.featured_image,
     });
   } catch (e) {
     console.error('Auto-publish error:', (e as Error).message);

@@ -219,7 +219,7 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
 
 async function fetchRSS(url: string) {
   const resp = await fetch(url, {
-    headers: { 'User-Agent': 'GalachipaBlog/1.0', Accept: 'application/rss+xml, application/xml, text/xml' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36', Accept: 'application/rss+xml, application/xml, text/xml, */*' },
   });
   if (!resp.ok) return [];
   const xml = await resp.text();

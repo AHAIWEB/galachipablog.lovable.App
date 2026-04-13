@@ -10,14 +10,24 @@ export default function FeatureSlider() {
   const { data: slides = [] } = useQuery({
     queryKey: ["featured-posts"],
     queryFn: async () => {
-      const { data } = await supabase
+      // First try featured posts
+      const { data: featured } = await supabase
         .from("posts")
         .select("id, title, slug, featured_image, excerpt, categories(name, type)")
         .eq("status", "published")
         .eq("is_featured", true)
         .order("created_at", { ascending: false })
         .limit(6);
-      return data ?? [];
+      if (featured && featured.length > 0) return featured;
+      // Fallback: latest posts with images
+      const { data: latest } = await supabase
+        .from("posts")
+        .select("id, title, slug, featured_image, excerpt, categories(name, type)")
+        .eq("status", "published")
+        .not("featured_image", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      return latest ?? [];
     },
   });
 

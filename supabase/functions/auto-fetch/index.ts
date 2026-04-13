@@ -178,15 +178,29 @@ Deno.serve(async (req) => {
 
 async function autoPublishPost(supabase: any, article: { title: string; content: string; excerpt: string; featured_image: string; category_id: string | null }) {
   try {
-    const slug = article.title.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 200) + '-' + Date.now();
+    const title = (article.title || '').trim();
+    // Skip junk titles: too short, generic page names, or category-like names
+    const junkPatterns = /^(privacy\s*policy|terms|about\s*us|contact|home|know\s*more|যোগাযোগ|শর্তাবলী|untitled)$/i;
+    if (title.length < 10 || junkPatterns.test(title)) {
+      console.log(`Skipping junk title: "${title}"`);
+      return;
+    }
+    // Skip if title has no spaces (likely a single word / category name)
+    const wordCount = title.split(/\s+/).length;
+    if (wordCount < 2) {
+      console.log(`Skipping single-word title: "${title}"`);
+      return;
+    }
+
+    const slug = title.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 200) + '-' + Date.now();
     const { data: existing } = await supabase
       .from('posts')
       .select('id')
-      .eq('title', article.title)
+      .eq('title', title)
       .maybeSingle();
     if (existing) return;
     await supabase.from('posts').insert({
-      title: article.title,
+      title,
       slug,
       content: article.content || null,
       excerpt: (article.excerpt || '').slice(0, 500) || null,

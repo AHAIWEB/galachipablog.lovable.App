@@ -78,36 +78,39 @@ Deno.serve(async (req) => {
           }
           results.push({ feed: feed.name, type: 'rss', inserted });
         } else {
-          // scrape type
-          const scraped = await scrapeUrl(feedUrl);
-          if (scraped) {
+          // scrape type - extract multiple article links from listing page
+          const articles = await scrapeListingPage(feedUrl);
+          let inserted = 0;
+          for (const article of articles.slice(0, 15)) {
             const { data: existing } = await supabase
               .from('fetched_articles')
               .select('id')
               .eq('source_id', feed.id)
-              .eq('original_url', feedUrl)
+              .eq('original_url', article.link)
               .maybeSingle();
-            if (!existing) {
-              await supabase.from('fetched_articles').insert({
-                source_id: feed.id,
-                title: scraped.title,
-                content: scraped.content,
-                excerpt: scraped.excerpt,
-                featured_image: scraped.image,
-                original_url: feedUrl,
-                status: 'fetched',
-              });
-              // Auto-publish as post
+            if (existing) continue;
+
+            const { error } = await supabase.from('fetched_articles').insert({
+              source_id: feed.id,
+              title: article.title || 'Untitled',
+              content: article.content || '',
+              excerpt: article.excerpt || '',
+              featured_image: article.image || '',
+              original_url: article.link || feedUrl,
+              status: 'fetched',
+            });
+            if (!error) {
+              inserted++;
               await autoPublishPost(supabase, {
-                title: scraped.title,
-                content: scraped.content,
-                excerpt: scraped.excerpt,
-                featured_image: scraped.image,
+                title: article.title || 'Untitled',
+                content: article.content || '',
+                excerpt: article.excerpt || '',
+                featured_image: article.image || '',
                 category_id: feed.category_id || null,
               });
             }
-            results.push({ feed: feed.name, type: 'scrape', inserted: existing ? 0 : 1 });
           }
+          results.push({ feed: feed.name, type: 'scrape', inserted });
         }
         // Update last_fetched_at
         await supabase.from('feed_sources').update({ last_fetched_at: now.toISOString() }).eq('id', feed.id);

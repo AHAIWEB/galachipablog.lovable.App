@@ -78,36 +78,39 @@ Deno.serve(async (req) => {
           }
           results.push({ feed: feed.name, type: 'rss', inserted });
         } else {
-          // scrape type
-          const scraped = await scrapeUrl(feedUrl);
-          if (scraped) {
+          // scrape type - extract multiple article links from listing page
+          const articles = await scrapeListingPage(feedUrl);
+          let inserted = 0;
+          for (const article of articles.slice(0, 15)) {
             const { data: existing } = await supabase
               .from('fetched_articles')
               .select('id')
               .eq('source_id', feed.id)
-              .eq('original_url', feedUrl)
+              .eq('original_url', article.link)
               .maybeSingle();
-            if (!existing) {
-              await supabase.from('fetched_articles').insert({
-                source_id: feed.id,
-                title: scraped.title,
-                content: scraped.content,
-                excerpt: scraped.excerpt,
-                featured_image: scraped.image,
-                original_url: feedUrl,
-                status: 'fetched',
-              });
-              // Auto-publish as post
+            if (existing) continue;
+
+            const { error } = await supabase.from('fetched_articles').insert({
+              source_id: feed.id,
+              title: article.title || 'Untitled',
+              content: article.content || '',
+              excerpt: article.excerpt || '',
+              featured_image: article.image || '',
+              original_url: article.link || feedUrl,
+              status: 'fetched',
+            });
+            if (!error) {
+              inserted++;
               await autoPublishPost(supabase, {
-                title: scraped.title,
-                content: scraped.content,
-                excerpt: scraped.excerpt,
-                featured_image: scraped.image,
+                title: article.title || 'Untitled',
+                content: article.content || '',
+                excerpt: article.excerpt || '',
+                featured_image: article.image || '',
                 category_id: feed.category_id || null,
               });
             }
-            results.push({ feed: feed.name, type: 'scrape', inserted: existing ? 0 : 1 });
           }
+          results.push({ feed: feed.name, type: 'scrape', inserted });
         }
         // Update last_fetched_at
         await supabase.from('feed_sources').update({ last_fetched_at: now.toISOString() }).eq('id', feed.id);
@@ -216,7 +219,7 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
 
 async function fetchRSS(url: string) {
   const resp = await fetch(url, {
-    headers: { 'User-Agent': 'GalachipaBlog/1.0', Accept: 'application/rss+xml, application/xml, text/xml' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36', Accept: 'application/rss+xml, application/xml, text/xml, */*' },
   });
   if (!resp.ok) return [];
   const xml = await resp.text();
@@ -299,4 +302,99 @@ async function scrapeUrl(url: string) {
   if (kwMatch) kwMatch[1].split(',').map(t => t.trim()).filter(Boolean).forEach(t => tags.push(t));
 
   return { title, content, excerpt, image, images, tags };
+}
+
+async function scrapeListingPage(url: string): Promise<{ title: string; link: string; content: string; excerpt: string; image: string }[]> {
+  const resp = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+      Accept: 'text/html',
+    },
+    redirect: 'follow',
+  });
+  if (!resp.ok) return [];
+  const html = await resp.text();
+  if (html.length < 200) return [];
+
+  const baseUrl = new URL(url);
+  const articles: { title: string; link: string; content: string; excerpt: string; image: string }[] = [];
+
+  // Extract article links with titles from common patterns
+  // Pattern 1: <a> tags with href containing article paths + heading inside
+  const linkRegex = /<a[^>]+href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const seenLinks = new Set<string>();
+  let match;
+
+  while ((match = linkRegex.exec(html)) !== null && articles.length < 20) {
+    let href = match[1].trim();
+    const inner = match[2];
+
+    // Skip non-article links
+    if (!href || href === '/' || href === '#' || href.includes('javascript:')) continue;
+    if (/\.(css|js|png|jpg|gif|svg|ico)(\?|$)/i.test(href)) continue;
+    if (/(login|signup|register|search|tag|category|page\/\d|#)/i.test(href)) continue;
+
+    // Must look like an article URL (has path segments)
+    const pathParts = href.replace(/^https?:\/\/[^/]+/, '').split('/').filter(Boolean);
+    if (pathParts.length < 2) continue;
+
+    // Extract title from heading tags inside the link
+    const headingMatch = inner.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
+    let title = '';
+    if (headingMatch) {
+      title = headingMatch[1].replace(/<[^>]+>/g, '').trim();
+    } else {
+      // Use link text if it's meaningful
+      title = inner.replace(/<[^>]+>/g, '').trim();
+    }
+
+    if (!title || title.length < 10) continue;
+    const wordCount = title.split(/\s+/).length;
+    if (wordCount < 2) continue;
+
+    // Resolve relative URLs
+    if (href.startsWith('/')) {
+      href = baseUrl.origin + href;
+    } else if (!href.startsWith('http')) {
+      href = baseUrl.origin + '/' + href;
+    }
+
+    if (seenLinks.has(href)) continue;
+    seenLinks.add(href);
+
+    // Extract image near the link
+    const imgMatch = inner.match(/<img[^>]+src=["']([^"']+)["']/i);
+    let image = imgMatch?.[1] || '';
+    if (image && !image.startsWith('http')) {
+      image = image.startsWith('/') ? baseUrl.origin + image : baseUrl.origin + '/' + image;
+    }
+
+    articles.push({
+      title,
+      link: href,
+      content: '',
+      excerpt: title,
+      image,
+    });
+  }
+
+  // For each article, try to fetch individual page for better content/image
+  for (const article of articles.slice(0, 10)) {
+    try {
+      const detail = await scrapeUrl(article.link);
+      if (detail) {
+        if (detail.title && detail.title !== 'Untitled' && detail.title.length > article.title.length) {
+          article.title = detail.title;
+        }
+        if (detail.content) article.content = detail.content;
+        if (detail.excerpt) article.excerpt = detail.excerpt;
+        if (detail.image && !article.image) article.image = detail.image;
+        if (detail.image) article.image = detail.image; // og:image is usually better
+      }
+    } catch {
+      // skip individual fetch errors
+    }
+  }
+
+  return articles;
 }

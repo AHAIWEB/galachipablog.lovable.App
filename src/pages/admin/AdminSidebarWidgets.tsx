@@ -14,12 +14,13 @@ const WIDGET_TYPES = [
   { value: "website_links", label: "ওয়েবসাইট লিংক" },
   { value: "business_cards", label: "বিজনেস কার্ড" },
   { value: "ads", label: "বিজ্ঞাপন" },
+  { value: "this_day", label: "এই দিনে" },
   { value: "custom_html", label: "কাস্টম HTML" },
 ];
 
 export default function AdminSidebarWidgets() {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ title: "", widget_type: "latest_posts", sidebar: "left", config: "{}" });
+  const [form, setForm] = useState({ title: "", widget_type: "latest_posts", sidebar: "left", config: "{}", category_id: "" });
   const [sidebarFilter, setSidebarFilter] = useState<"left" | "right">("left");
 
   const { data: widgets, isLoading } = useQuery({
@@ -31,13 +32,26 @@ export default function AdminSidebarWidgets() {
     },
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["all-categories"],
+    queryFn: async () => {
+      const { data } = await supabase.from("categories").select("id, name, type").order("type").order("name");
+      return data ?? [];
+    },
+  });
+
   const filtered = widgets?.filter(w => w.sidebar === sidebarFilter) ?? [];
+
+  const needsCategory = form.widget_type === "category_posts";
 
   const addMutation = useMutation({
     mutationFn: async () => {
       const maxOrder = Math.max(0, ...(filtered.map(w => w.sort_order) || [0]));
-      let config = {};
+      let config: any = {};
       try { config = JSON.parse(form.config); } catch {}
+      if (needsCategory && form.category_id) {
+        config.category_id = form.category_id;
+      }
       const { error } = await supabase.from("sidebar_widgets").insert({
         title: form.title, widget_type: form.widget_type, sidebar: form.sidebar,
         config, sort_order: maxOrder + 1,
@@ -47,7 +61,7 @@ export default function AdminSidebarWidgets() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sidebar-widgets"] });
       toast.success("উইজেট যোগ হয়েছে");
-      setForm({ title: "", widget_type: "latest_posts", sidebar: sidebarFilter, config: "{}" });
+      setForm({ title: "", widget_type: "latest_posts", sidebar: sidebarFilter, config: "{}", category_id: "" });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -110,12 +124,26 @@ export default function AdminSidebarWidgets() {
               {WIDGET_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
+          {needsCategory && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">ক্যাটাগরি নির্বাচন *</label>
+              <select value={form.category_id} onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))}
+                className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm">
+                <option value="">-- ক্যাটাগরি বেছে নিন --</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.type === 'news' ? 'খবর' : c.type === 'blog' ? 'ব্লগ' : 'ডিরেক্টরি'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="text-xs font-medium text-muted-foreground">কনফিগ (JSON)</label>
             <input value={form.config} onChange={e => setForm(p => ({ ...p, config: e.target.value }))} placeholder='{"limit": 5}'
               className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm font-mono text-xs" />
           </div>
-          <button onClick={() => addMutation.mutate()} disabled={!form.title || addMutation.isPending}
+          <button onClick={() => addMutation.mutate()} disabled={!form.title || (needsCategory && !form.category_id) || addMutation.isPending}
             className="flex items-center justify-center gap-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
             <Plus className="h-4 w-4" /> যোগ করুন
           </button>
@@ -138,6 +166,11 @@ export default function AdminSidebarWidgets() {
                   <p className="text-sm font-medium">{w.title}</p>
                   <p className="text-xs text-muted-foreground">
                     {WIDGET_TYPES.find(t => t.value === w.widget_type)?.label || w.widget_type}
+                    {(w.config as any)?.category_id && (
+                      <span className="ml-1 text-primary">
+                        • {categories.find(c => c.id === (w.config as any).category_id)?.name || 'ক্যাটাগরি'}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-0.5 shrink-0">

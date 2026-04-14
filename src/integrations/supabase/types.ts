@@ -711,6 +711,45 @@ export type Database = {
         }
         Relationships: []
       }
+      this_day_events: {
+        Row: {
+          category: string | null
+          created_at: string
+          day: number
+          description: string | null
+          id: string
+          month: number
+          source_url: string | null
+          title: string
+          updated_at: string
+          year: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          day: number
+          description?: string | null
+          id?: string
+          month: number
+          source_url?: string | null
+          title: string
+          updated_at?: string
+          year?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          day?: number
+          description?: string | null
+          id?: string
+          month?: number
+          source_url?: string | null
+          title?: string
+          updated_at?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string

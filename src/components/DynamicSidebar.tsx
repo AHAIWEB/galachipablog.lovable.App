@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { CreditCard, ExternalLink } from "lucide-react";
+import { CreditCard, ExternalLink, Calendar } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
+import { Link as RouterLink } from "react-router-dom";
 
 type Widget = {
   id: string;
@@ -144,12 +145,60 @@ function PhotoGalleryWidget({ config }: { config: any }) {
         ))}
         {images.length === 0 && <p className="col-span-3 text-xs text-muted-foreground p-2">ছবি নেই</p>}
       </div>
+      <RouterLink to="/gallery" className="block text-center text-xs text-primary hover:underline py-2 border-t border-border">
+        সব ছবি দেখুন →
+      </RouterLink>
       {lightbox && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
           <img src={lightbox} alt="" className="max-w-full max-h-full rounded-lg" />
         </div>
       )}
     </>
+  );
+}
+
+function ThisDayWidget() {
+  const today = new Date();
+  const month = today.getMonth() + 1;
+  const day = today.getDate();
+
+  const { data: events = [] } = useQuery({
+    queryKey: ["this-day-events", month, day],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("this_day_events" as any)
+        .select("*")
+        .eq("month", month)
+        .eq("day", day)
+        .order("year", { ascending: true })
+        .limit(10);
+      return (data ?? []) as any[];
+    },
+  });
+
+  const bengaliMonths = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
+
+  return (
+    <div>
+      <div className="px-3 py-2 bg-muted/50 border-b border-border flex items-center gap-2">
+        <Calendar className="h-4 w-4 text-primary" />
+        <span className="text-xs font-medium text-muted-foreground">
+          {day} {bengaliMonths[month - 1]}
+        </span>
+      </div>
+      <div className="divide-y divide-border max-h-72 overflow-y-auto">
+        {events.length > 0 ? events.map((ev: any, i: number) => (
+          <div key={ev.id || i} className="px-3 py-2">
+            <p className="text-xs leading-relaxed">
+              {ev.year && <span className="font-bold text-primary mr-1">{ev.year}:</span>}
+              {ev.title}
+            </p>
+          </div>
+        )) : (
+          <p className="p-3 text-xs text-muted-foreground">আজকের কোনো ঘটনা নেই</p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -249,7 +298,7 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
   const emojiMap: Record<string, string> = {
     latest_posts: "📰", news: "📰", blog: "💡", directory: "📂",
     photo_gallery: "📷", website_links: "🔗", business_cards: "🗂",
-    ads: "📢", custom_html: "📝",
+    ads: "📢", custom_html: "📝", this_day: "📅", category_posts: "📂",
   };
 
   const renderContent = () => {
@@ -263,6 +312,7 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
       case "website_links": return <WebsiteLinksWidget config={widget.config} />;
       case "business_cards": return <BusinessCardsWidget config={widget.config} />;
       case "ads": return <AdsWidget config={widget.config} />;
+      case "this_day": return <ThisDayWidget />;
       case "custom_html": return <CustomHtmlWidget config={widget.config} />;
       default: return <p className="p-3 text-xs text-muted-foreground">অজানা উইজেট টাইপ</p>;
     }

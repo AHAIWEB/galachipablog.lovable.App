@@ -56,7 +56,7 @@ export default function AdminArchiveHub() {
   const [publishCatId, setPublishCatId] = useState<string>("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPublishCatId, setBulkPublishCatId] = useState<string>("");
-  const [showBulkPublish, setShowBulkPublish] = false);
+  const [showBulkPublish, setShowBulkPublish] = useState(false);
   const [isScrapingThisDay, setIsScrapingThisDay] = useState(false);
   const [thisDayStartMonth, setThisDayStartMonth] = useState(1);
   const [thisDayEndMonth, setThisDayEndMonth] = useState(12);

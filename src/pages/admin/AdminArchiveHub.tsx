@@ -290,7 +290,7 @@ export default function AdminArchiveHub() {
     }
   };
 
-
+  const deleteContent = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("archived_contents").delete().eq("id", id);
       if (error) throw error;

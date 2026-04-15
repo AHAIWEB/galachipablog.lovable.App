@@ -26,6 +26,7 @@ import AdminAds from "./pages/admin/AdminAds";
 import AdminArchiveHub from "./pages/admin/AdminArchiveHub";
 import AdminSidebarWidgets from "./pages/admin/AdminSidebarWidgets";
 import AdminWebsiteLinks from "./pages/admin/AdminWebsiteLinks";
+import AdminThisDay from "./pages/admin/AdminThisDay";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="archive" element={<AdminArchiveHub />} />
               <Route path="sidebar-widgets" element={<AdminSidebarWidgets />} />
               <Route path="website-links" element={<AdminWebsiteLinks />} />
+              <Route path="this-day" element={<AdminThisDay />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

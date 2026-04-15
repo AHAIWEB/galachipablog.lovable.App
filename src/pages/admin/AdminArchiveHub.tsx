@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Archive, Globe, Plus, Trash2, RefreshCw, Play, Pause, Sparkles,
   ExternalLink, Clock, FolderOpen, Search, Image, Tag, Layers, Send,
-  CheckSquare, Square, ChevronsUp,
+  CheckSquare, Square, ChevronsUp, Calendar,
 } from "lucide-react";
 
 type ArchiveContent = {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, GripVertical, Eye, EyeOff, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, Copy } from "lucide-react";
 
 const WIDGET_TYPES = [
   { value: "latest_posts", label: "সর্বশেষ পোস্ট" },
@@ -22,6 +22,7 @@ export default function AdminSidebarWidgets() {
   const qc = useQueryClient();
   const [form, setForm] = useState({ title: "", widget_type: "latest_posts", sidebar: "left", config: "{}", category_id: "" });
   const [sidebarFilter, setSidebarFilter] = useState<"left" | "right">("left");
+  const [showCategoryHelper, setShowCategoryHelper] = useState(false);
 
   const { data: widgets, isLoading } = useQuery({
     queryKey: ["sidebar-widgets"],
@@ -95,6 +96,11 @@ export default function AdminSidebarWidgets() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["sidebar-widgets"] }); toast.success("মুছে ফেলা হয়েছে"); },
   });
 
+  const copyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    toast.success("আইডি কপি হয়েছে!");
+  };
+
   return (
     <div>
       <h1 className="font-heading font-bold text-2xl mb-6">📐 সাইডবার উইজেট</h1>
@@ -107,6 +113,38 @@ export default function AdminSidebarWidgets() {
             {s === "left" ? "বাম সাইডবার" : "ডান সাইডবার"}
           </button>
         ))}
+      </div>
+
+      {/* Category ID Helper */}
+      <div className="mb-4">
+        <button onClick={() => setShowCategoryHelper(!showCategoryHelper)}
+          className="text-xs text-primary hover:underline flex items-center gap-1">
+          📋 ক্যাটাগরি আইডি দেখুন (সাইডবারে বসানোর জন্য)
+        </button>
+        {showCategoryHelper && (
+          <div className="mt-2 bg-card rounded-xl border border-border overflow-hidden max-h-60 overflow-y-auto">
+            <div className="px-3 py-2 bg-muted border-b border-border text-xs font-heading font-semibold">
+              ক্যাটাগরি → আইডি (ক্লিক করে কপি)
+            </div>
+            <div className="divide-y divide-border">
+              {categories.map(c => (
+                <button key={c.id} onClick={() => copyId(c.id)}
+                  className="flex items-center justify-between w-full px-3 py-2 hover:bg-muted/50 transition-colors text-left">
+                  <span className="text-xs">
+                    {c.name}
+                    <span className="text-muted-foreground ml-1">
+                      ({c.type === 'news' ? 'খবর' : c.type === 'blog' ? 'ব্লগ' : 'ডিরেক্টরি'})
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+                    {c.id.slice(0, 8)}…
+                    <Copy className="h-3 w-3" />
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add form */}

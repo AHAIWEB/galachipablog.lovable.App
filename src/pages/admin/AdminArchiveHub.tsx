@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Archive, Globe, Plus, Trash2, RefreshCw, Play, Pause, Sparkles,
   ExternalLink, Clock, FolderOpen, Search, Image, Tag, Layers, Send,
-  CheckSquare, Square, ChevronsUp,
+  CheckSquare, Square, ChevronsUp, Calendar,
 } from "lucide-react";
 
 type ArchiveContent = {
@@ -41,6 +41,8 @@ type Schedule = {
 
 type Tab = "scraper" | "archive" | "schedules" | "dashboard";
 
+const bengaliMonthNames = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
+
 export default function AdminArchiveHub() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("scraper");
@@ -57,6 +59,9 @@ export default function AdminArchiveHub() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPublishCatId, setBulkPublishCatId] = useState<string>("");
   const [showBulkPublish, setShowBulkPublish] = useState(false);
+  const [isScrapingThisDay, setIsScrapingThisDay] = useState(false);
+  const [thisDayStartMonth, setThisDayStartMonth] = useState(1);
+  const [thisDayEndMonth, setThisDayEndMonth] = useState(12);
 
   const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "", category_id: "" });
 
@@ -270,6 +275,21 @@ export default function AdminArchiveHub() {
     await refetchItems(broken);
   };
 
+  const handleScrapeThisDay = async () => {
+    setIsScrapingThisDay(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("scrape-this-day", {
+        body: { start_month: thisDayStartMonth, end_month: thisDayEndMonth },
+      });
+      if (error) throw error;
+      toast.success(`${data?.total_events ?? 0}টি ঐতিহাসিক ঘটনা সেভ হয়েছে (${data?.pages_processed ?? 0} পেজ প্রসেস)`);
+    } catch (e: any) {
+      toast.error(e.message || "এই দিনে স্ক্র্যাপিং ব্যর্থ");
+    } finally {
+      setIsScrapingThisDay(false);
+    }
+  };
+
   const deleteContent = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("archived_contents").delete().eq("id", id);
@@ -406,10 +426,35 @@ export default function AdminArchiveHub() {
               </button>
             </div>
           </div>
+
+          {/* This Day scraper */}
+          <div className="bg-card rounded-xl border border-border p-4">
+            <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" /> এই দিনে — ঐতিহাসিক ঘটনা স্ক্র্যাপার
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              বাংলা উইকিপিডিয়া থেকে প্রতিদিনের ঐতিহাসিক ঘটনা, জন্ম ও মৃত্যু তথ্য স্ক্র্যাপ করে ডেটাবেসে সেভ করবে।
+            </p>
+            <div className="flex gap-2 items-center flex-wrap mb-3">
+              <label className="text-xs">শুরু মাস:</label>
+              <select value={thisDayStartMonth} onChange={e => setThisDayStartMonth(Number(e.target.value))}
+                className="px-2 py-1 rounded border border-input bg-background text-sm">
+                {bengaliMonthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+              </select>
+              <label className="text-xs">শেষ মাস:</label>
+              <select value={thisDayEndMonth} onChange={e => setThisDayEndMonth(Number(e.target.value))}
+                className="px-2 py-1 rounded border border-input bg-background text-sm">
+                {bengaliMonthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+              </select>
+              <button onClick={handleScrapeThisDay} disabled={isScrapingThisDay}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                {isScrapingThisDay ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Calendar className="h-4 w-4" />}
+                {isScrapingThisDay ? "স্ক্র্যাপিং..." : "এই দিনে স্ক্র্যাপ করুন"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-
-      {/* Archive Tab */}
       {tab === "archive" && (
         <div className="space-y-3">
           {/* Category filter */}

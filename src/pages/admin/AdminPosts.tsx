@@ -299,17 +299,41 @@ export default function AdminPosts() {
               <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))} rows={8} className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
             </div>
 
-            {/* Multi Image Upload */}
+            {/* Multi Image Upload + URL */}
             <div className="md:col-span-2">
               <label className="text-xs font-medium text-muted-foreground mb-2 block">ছবি গ্যালারি</label>
               <div className="border-2 border-dashed border-input rounded-lg p-4">
-                <label className="flex items-center justify-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors py-2">
-                  <Upload className="h-4 w-4" />
-                  ছবি আপলোড করুন (একাধিক)
-                  <input type="file" multiple accept="image/*" className="hidden" onChange={e => e.target.files && handleImageUpload(e.target.files)} />
-                </label>
+                <div className="flex gap-2 items-center flex-wrap mb-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors py-2 px-3 bg-muted rounded-lg">
+                    <Upload className="h-4 w-4" />
+                    ফাইল আপলোড
+                    <input type="file" multiple accept="image/*" className="hidden" onChange={e => e.target.files && handleImageUpload(e.target.files)} />
+                  </label>
+                  <div className="flex gap-1 flex-1 min-w-[200px]">
+                    <input
+                      placeholder="ছবি URL দিন (https://...)"
+                      className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-xs"
+                      onKeyDown={e => {
+                        if (e.key === "Enter") {
+                          const val = (e.target as HTMLInputElement).value.trim();
+                          if (val) {
+                            setPostImages(prev => [...prev, { image_url: val, caption: "" }]);
+                            (e.target as HTMLInputElement).value = "";
+                          }
+                        }
+                      }}
+                    />
+                    <button type="button" onClick={() => {
+                      const input = document.querySelector<HTMLInputElement>('input[placeholder="ছবি URL দিন (https://...)"]');
+                      if (input?.value.trim()) {
+                        setPostImages(prev => [...prev, { image_url: input.value.trim(), caption: "" }]);
+                        input.value = "";
+                      }
+                    }} className="px-3 py-2 rounded-lg bg-muted text-xs font-medium hover:bg-muted/80">+ URL</button>
+                  </div>
+                </div>
                 {postImages.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
                     {postImages.map((img, idx) => (
                       <div key={idx} className="relative group bg-muted rounded-lg overflow-hidden">
                         <img src={img.image_url} alt="" className="w-full h-24 object-cover" />

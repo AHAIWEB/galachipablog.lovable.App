@@ -409,10 +409,35 @@ export default function AdminArchiveHub() {
               </button>
             </div>
           </div>
+
+          {/* This Day scraper */}
+          <div className="bg-card rounded-xl border border-border p-4">
+            <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" /> এই দিনে — ঐতিহাসিক ঘটনা স্ক্র্যাপার
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              বাংলা উইকিপিডিয়া থেকে প্রতিদিনের ঐতিহাসিক ঘটনা, জন্ম ও মৃত্যু তথ্য স্ক্র্যাপ করে ডেটাবেসে সেভ করবে।
+            </p>
+            <div className="flex gap-2 items-center flex-wrap mb-3">
+              <label className="text-xs">শুরু মাস:</label>
+              <select value={thisDayStartMonth} onChange={e => setThisDayStartMonth(Number(e.target.value))}
+                className="px-2 py-1 rounded border border-input bg-background text-sm">
+                {bengaliMonthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+              </select>
+              <label className="text-xs">শেষ মাস:</label>
+              <select value={thisDayEndMonth} onChange={e => setThisDayEndMonth(Number(e.target.value))}
+                className="px-2 py-1 rounded border border-input bg-background text-sm">
+                {bengaliMonthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+              </select>
+              <button onClick={handleScrapeThisDay} disabled={isScrapingThisDay}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                {isScrapingThisDay ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Calendar className="h-4 w-4" />}
+                {isScrapingThisDay ? "স্ক্র্যাপিং..." : "এই দিনে স্ক্র্যাপ করুন"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
-
-      {/* Archive Tab */}
       {tab === "archive" && (
         <div className="space-y-3">
           {/* Category filter */}

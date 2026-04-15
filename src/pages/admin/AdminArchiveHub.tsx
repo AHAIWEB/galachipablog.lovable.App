@@ -275,7 +275,22 @@ export default function AdminArchiveHub() {
     await refetchItems(broken);
   };
 
-  const deleteContent = useMutation({
+  const handleScrapeThisDay = async () => {
+    setIsScrapingThisDay(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("scrape-this-day", {
+        body: { start_month: thisDayStartMonth, end_month: thisDayEndMonth },
+      });
+      if (error) throw error;
+      toast.success(`${data?.total_events ?? 0}টি ঐতিহাসিক ঘটনা সেভ হয়েছে (${data?.pages_processed ?? 0} পেজ প্রসেস)`);
+    } catch (e: any) {
+      toast.error(e.message || "এই দিনে স্ক্র্যাপিং ব্যর্থ");
+    } finally {
+      setIsScrapingThisDay(false);
+    }
+  };
+
+
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("archived_contents").delete().eq("id", id);
       if (error) throw error;

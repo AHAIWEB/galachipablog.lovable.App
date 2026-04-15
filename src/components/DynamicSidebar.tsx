@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { CreditCard, ExternalLink, Calendar } from "lucide-react";
+import { CreditCard, ExternalLink, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import AdSlot from "@/components/AdSlot";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -39,7 +39,7 @@ function CategorySpecificPostsWidget({ config }: { config: any }) {
 
   return (
     <div className="divide-y divide-border">
-      {posts.map((p, i) => (
+      {posts.map((p) => (
         <Link key={p.id} to={`/post/${p.slug}`} className="flex gap-2 p-2.5 hover:bg-muted/50 transition-colors group">
           {p.featured_image && (
             <img src={p.featured_image} alt="" className="w-14 h-10 object-cover rounded shrink-0" />
@@ -59,7 +59,7 @@ function LatestPostsWidget({ config }: { config: any }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("posts")
-        .select("id, title, slug, categories(name, type)")
+        .select("id, title, slug, featured_image, categories(name, type)")
         .eq("status", "published")
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -70,17 +70,17 @@ function LatestPostsWidget({ config }: { config: any }) {
   return (
     <div className="divide-y divide-border">
       {posts.map((p, i) => (
-        <Link key={p.id} to={`/post/${p.slug}`} className="block p-3 hover:bg-muted/50 transition-colors group">
-          <div className="flex gap-2">
-            <span className="text-xs font-bold text-muted-foreground/50 mt-0.5 w-5 shrink-0">{String(i + 1).padStart(2, '0')}</span>
-            <div>
-              <h4 className="text-sm font-heading font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2">{p.title}</h4>
-              {(p as any).categories?.name && (
-                <span className={`mt-1 inline-block text-[10px] px-1.5 py-0.5 rounded ${(p as any).categories?.type === 'news' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : (p as any).categories?.type === 'blog' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'}`}>
-                  {(p as any).categories.name}
-                </span>
-              )}
-            </div>
+        <Link key={p.id} to={`/post/${p.slug}`} className="flex gap-2 p-2.5 hover:bg-muted/50 transition-colors group">
+          {p.featured_image && (
+            <img src={p.featured_image} alt="" className="w-14 h-10 object-cover rounded shrink-0" />
+          )}
+          <div className="flex-1 min-w-0">
+            <h4 className="text-xs font-heading font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2">{p.title}</h4>
+            {(p as any).categories?.name && (
+              <span className={`mt-0.5 inline-block text-[10px] px-1.5 py-0.5 rounded ${(p as any).categories?.type === 'news' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : (p as any).categories?.type === 'blog' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'}`}>
+                {(p as any).categories.name}
+              </span>
+            )}
           </div>
         </Link>
       ))}
@@ -98,7 +98,7 @@ function CategoryPostsWidget({ config, type }: { config: any; type: "news" | "bl
       if (!cats || cats.length === 0) return [];
       const { data } = await supabase
         .from("posts")
-        .select("id, title, slug, categories(name)")
+        .select("id, title, slug, featured_image, categories(name)")
         .eq("status", "published")
         .in("category_id", cats.map(c => c.id))
         .order("created_at", { ascending: false })
@@ -110,8 +110,11 @@ function CategoryPostsWidget({ config, type }: { config: any; type: "news" | "bl
   return (
     <div className="divide-y divide-border">
       {posts.map(p => (
-        <Link key={p.id} to={`/post/${p.slug}`} className="block p-3 hover:bg-muted/50 transition-colors group">
-          <p className="text-sm font-heading font-medium group-hover:text-primary transition-colors line-clamp-2">{p.title}</p>
+        <Link key={p.id} to={`/post/${p.slug}`} className="flex gap-2 p-2.5 hover:bg-muted/50 transition-colors group">
+          {p.featured_image && (
+            <img src={p.featured_image} alt="" className="w-14 h-10 object-cover rounded shrink-0" />
+          )}
+          <p className="text-xs font-heading font-medium group-hover:text-primary transition-colors line-clamp-2 flex-1">{p.title}</p>
         </Link>
       ))}
       {posts.length === 0 && <p className="p-3 text-xs text-muted-foreground">পোস্ট নেই</p>}
@@ -161,22 +164,27 @@ function ThisDayWidget() {
   const today = new Date();
   const month = today.getMonth() + 1;
   const day = today.getDate();
+  const [category, setCategory] = useState<string>("all");
 
   const { data: events = [] } = useQuery({
     queryKey: ["this-day-events", month, day],
     queryFn: async () => {
       const { data } = await supabase
-        .from("this_day_events" as any)
+        .from("this_day_events")
         .select("*")
         .eq("month", month)
         .eq("day", day)
         .order("year", { ascending: true })
-        .limit(10);
+        .limit(50);
       return (data ?? []) as any[];
     },
   });
 
   const bengaliMonths = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
+
+  const categories = [...new Set(events.map((e: any) => e.category).filter(Boolean))];
+  const filtered = category === "all" ? events : events.filter((e: any) => e.category === category);
+  const categoryLabels: Record<string, string> = { historical: "ঘটনা", birth: "জন্ম", death: "মৃত্যু" };
 
   return (
     <div>
@@ -185,14 +193,30 @@ function ThisDayWidget() {
         <span className="text-xs font-medium text-muted-foreground">
           {day} {bengaliMonths[month - 1]}
         </span>
+        <span className="text-[10px] text-muted-foreground ml-auto">({events.length}টি)</span>
       </div>
+      {categories.length > 1 && (
+        <div className="flex gap-1 px-2 py-1.5 border-b border-border bg-muted/30">
+          <button onClick={() => setCategory("all")} className={`px-2 py-0.5 rounded text-[10px] ${category === "all" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>সব</button>
+          {categories.map(c => (
+            <button key={c} onClick={() => setCategory(c)} className={`px-2 py-0.5 rounded text-[10px] ${category === c ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+              {categoryLabels[c] || c}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="divide-y divide-border max-h-72 overflow-y-auto">
-        {events.length > 0 ? events.map((ev: any, i: number) => (
+        {filtered.length > 0 ? filtered.slice(0, 15).map((ev: any, i: number) => (
           <div key={ev.id || i} className="px-3 py-2">
             <p className="text-xs leading-relaxed">
               {ev.year && <span className="font-bold text-primary mr-1">{ev.year}:</span>}
               {ev.title}
             </p>
+            {ev.category && ev.category !== "historical" && (
+              <span className={`text-[9px] px-1 py-0.5 rounded mt-0.5 inline-block ${ev.category === "birth" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"}`}>
+                {categoryLabels[ev.category] || ev.category}
+              </span>
+            )}
           </div>
         )) : (
           <p className="p-3 text-xs text-muted-foreground">আজকের কোনো ঘটনা নেই</p>

@@ -27,6 +27,7 @@ import AdminArchiveHub from "./pages/admin/AdminArchiveHub";
 import AdminSidebarWidgets from "./pages/admin/AdminSidebarWidgets";
 import AdminWebsiteLinks from "./pages/admin/AdminWebsiteLinks";
 import AdminThisDay from "./pages/admin/AdminThisDay";
+import AdminAiCard from "./pages/admin/AdminAiCard";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
@@ -72,6 +73,7 @@ const App = () => (
               <Route path="sidebar-widgets" element={<AdminSidebarWidgets />} />
               <Route path="website-links" element={<AdminWebsiteLinks />} />
               <Route path="this-day" element={<AdminThisDay />} />
+              <Route path="ai-card" element={<AdminAiCard />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

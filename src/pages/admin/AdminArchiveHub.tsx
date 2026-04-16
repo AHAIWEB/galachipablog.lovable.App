@@ -478,7 +478,62 @@ export default function AdminArchiveHub() {
               </button>
             </div>
           </div>
-        </div>
+
+          {/* Wiki People scraper */}
+          <div className="bg-card rounded-xl border border-border p-4">
+            <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" /> পিপল — বিশ্ববরেণ্য ব্যক্তি স্ক্র্যাপার
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              বাংলা উইকিপিডিয়া থেকে কবি, সাহিত্যিক, রাজনীতিবিদ ও বরণ্য ব্যক্তিদের প্রোফাইল স্ক্র্যাপ করে আর্কাইভে সেভ ও পোস্ট করবে।
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+              <div>
+                <label className="text-xs text-muted-foreground">ক্যাটাগরি ফিল্টার</label>
+                <select value={peopleCategoryTag} onChange={e => setPeopleCategoryTag(e.target.value)}
+                  className="w-full px-2 py-1.5 rounded border border-input bg-background text-sm">
+                  <option value="">সব ক্যাটাগরি</option>
+                  {['কবি','সাহিত্যিক','রাজনীতিবিদ','বিজ্ঞানী','শিল্পী','সংগীতশিল্পী','অভিনেতা','বিশ্ববরেণ্য'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">সর্বোচ্চ সংখ্যা</label>
+                <input type="number" value={peopleMaxCount} onChange={e => setPeopleMaxCount(Number(e.target.value))} min={1} max={500}
+                  className="w-full px-2 py-1.5 rounded border border-input bg-background text-sm" />
+              </div>
+            </div>
+            <div className="mb-3">
+              <label className="text-xs text-muted-foreground">কাস্টম উইকিপিডিয়া URL (ঐচ্ছিক, প্রতি লাইনে একটি)</label>
+              <textarea value={peopleCustomUrls} onChange={e => setPeopleCustomUrls(e.target.value)} rows={3}
+                placeholder="https://bn.wikipedia.org/wiki/রবীন্দ্রনাথ_ঠাকুর"
+                className="w-full px-2 py-1.5 rounded border border-input bg-background text-sm resize-y" />
+            </div>
+            <div className="flex gap-2 items-center flex-wrap mb-3">
+              <label className="flex items-center gap-1.5 text-xs">
+                <input type="checkbox" checked={peopleAutoPublish} onChange={e => setPeopleAutoPublish(e.target.checked)} />
+                অটো-পাবলিশ পোস্ট হিসেবে
+              </label>
+              {peopleAutoPublish && (
+                <select value={peoplePubCatId} onChange={e => setPeoplePubCatId(e.target.value)}
+                  className="px-2 py-1 rounded border border-input bg-background text-sm">
+                  <option value="">পোস্ট ক্যাটাগরি নির্বাচন</option>
+                  {categoryTree.map(p => (
+                    <optgroup key={p.id} label={`${p.name} (${p.type})`}>
+                      <option value={p.id}>{p.name}</option>
+                      {p.children.map((c: any) => <option key={c.id} value={c.id}>↳ {c.name}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              )}
+            </div>
+            <button onClick={handleScrapePeople} disabled={isScrapingPeople}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+              {isScrapingPeople ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+              {isScrapingPeople ? "স্ক্র্যাপিং চলছে..." : "পিপল স্ক্র্যাপ করুন"}
+            </button>
+          </div>
       )}
       {tab === "archive" && (
         <div className="space-y-3">

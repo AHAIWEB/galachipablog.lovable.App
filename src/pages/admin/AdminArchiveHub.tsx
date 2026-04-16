@@ -534,6 +534,7 @@ export default function AdminArchiveHub() {
               {isScrapingPeople ? "স্ক্র্যাপিং চলছে..." : "পিপল স্ক্র্যাপ করুন"}
             </button>
           </div>
+        </div>
       )}
       {tab === "archive" && (
         <div className="space-y-3">

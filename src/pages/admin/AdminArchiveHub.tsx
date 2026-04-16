@@ -296,7 +296,25 @@ export default function AdminArchiveHub() {
     }
   };
 
-  const deleteContent = useMutation({
+  const handleScrapePeople = async () => {
+    setIsScrapingPeople(true);
+    try {
+      const body: any = { max_people: peopleMaxCount };
+      if (peopleCategoryTag) body.category_tag = peopleCategoryTag;
+      if (peopleAutoPublish && peoplePubCatId) body.publish_category_id = peoplePubCatId;
+      if (peopleCustomUrls.trim()) {
+        body.urls = peopleCustomUrls.split('\n').map(u => u.trim()).filter(Boolean);
+      }
+      const { data, error } = await supabase.functions.invoke("scrape-wiki-people", { body });
+      if (error) throw error;
+      toast.success(`${data?.saved ?? 0}টি প্রোফাইল সেভ, ${data?.published ?? 0}টি পোস্ট পাবলিশ হয়েছে`);
+      qc.invalidateQueries({ queryKey: ["archive-contents"] });
+    } catch (e: any) {
+      toast.error(e.message || "পিপল স্ক্র্যাপিং ব্যর্থ");
+    } finally {
+      setIsScrapingPeople(false);
+    }
+  };
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("archived_contents").delete().eq("id", id);
       if (error) throw error;

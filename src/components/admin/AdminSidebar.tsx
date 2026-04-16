@@ -1,7 +1,7 @@
 import { NavLink as RouterNavLink } from "react-router-dom";
 import {
   LayoutDashboard, FileText, FolderTree, CreditCard, Users, Rss, Activity,
-  ImageIcon, Zap, Quote, Palette, Shield, Megaphone, Archive, PanelLeft, Link2, Calendar,
+  ImageIcon, Zap, Quote, Palette, Shield, Megaphone, Archive, PanelLeft, Link2, Calendar, Sparkles,
 } from "lucide-react";
 
 const navItems = [
@@ -22,6 +22,7 @@ const navItems = [
   { to: "/admin/sidebar-widgets", icon: PanelLeft, label: "সাইডবার উইজেট" },
   { to: "/admin/website-links", icon: Link2, label: "ওয়েবসাইট লিংক" },
   { to: "/admin/this-day", icon: Calendar, label: "এই দিনে" },
+  { to: "/admin/ai-card", icon: Sparkles, label: "AI কার্ড মেকার" },
 ];
 
 export default function AdminSidebar() {

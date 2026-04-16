@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Archive, Globe, Plus, Trash2, RefreshCw, Play, Pause, Sparkles,
   ExternalLink, Clock, FolderOpen, Search, Image, Tag, Layers, Send,
-  CheckSquare, Square, ChevronsUp, Calendar,
+  CheckSquare, Square, ChevronsUp, Calendar, Users,
 } from "lucide-react";
 
 type ArchiveContent = {
@@ -62,6 +62,12 @@ export default function AdminArchiveHub() {
   const [isScrapingThisDay, setIsScrapingThisDay] = useState(false);
   const [thisDayStartMonth, setThisDayStartMonth] = useState(1);
   const [thisDayEndMonth, setThisDayEndMonth] = useState(12);
+  const [isScrapingPeople, setIsScrapingPeople] = useState(false);
+  const [peopleCategoryTag, setPeopleCategoryTag] = useState("");
+  const [peopleMaxCount, setPeopleMaxCount] = useState(50);
+  const [peopleAutoPublish, setPeopleAutoPublish] = useState(false);
+  const [peoplePubCatId, setPeoplePubCatId] = useState("");
+  const [peopleCustomUrls, setPeopleCustomUrls] = useState("");
 
   const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "", category_id: "" });
 

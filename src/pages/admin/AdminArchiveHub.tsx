@@ -192,7 +192,8 @@ export default function AdminArchiveHub() {
         excerpt: item.excerpt || item.ai_summary || "",
         featured_image: item.featured_image || "",
         category_id: resolvedCatId, status: "published" as const, is_featured: false,
-      });
+        source_url: item.source_url || null,
+      } as any);
       if (error) throw error;
       await supabase.from("archived_contents").update({ status: "published" }).eq("id", item.id);
     },
@@ -219,7 +220,8 @@ export default function AdminArchiveHub() {
             excerpt: item.excerpt || item.ai_summary || "",
             featured_image: item.featured_image || "",
             category_id: resolvedCatId, status: "published" as const, is_featured: false,
-          });
+            source_url: item.source_url || null,
+          } as any);
           if (!error) {
             await supabase.from("archived_contents").update({ status: "published" }).eq("id", item.id);
             successCount++;

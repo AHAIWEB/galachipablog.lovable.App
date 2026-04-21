@@ -234,6 +234,21 @@ export default function PostDetail() {
               <div className="text-foreground/90 leading-relaxed text-base md:text-lg whitespace-pre-wrap font-body">
                 {post.content}
               </div>
+
+              {/* Source link */}
+              {(post as any).source_url && (
+                <div className="mt-6 pt-4 border-t border-border">
+                  <a
+                    href={(post as any).source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline font-medium"
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                    মূল সূত্র / বিস্তারিত পড়ুন →
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Share */}

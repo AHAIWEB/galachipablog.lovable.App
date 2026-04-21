@@ -93,49 +93,56 @@ export default function MasonryGrid() {
   if (allPosts.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-fade">
-      {allPosts.map((post, i) => {
-        const catName = (post as any).categories?.name;
-        const catType = (post as any).categories?.type;
+    <>
+      {/* True Pinterest-style CSS columns masonry */}
+      <div className="columns-2 sm:columns-2 md:columns-3 lg:columns-3 xl:columns-4 gap-3 [column-fill:_balance] stagger-fade">
+        {allPosts.map((post, i) => {
+          const catName = (post as any).categories?.name;
+          const catType = (post as any).categories?.type;
+          // Vary heights for true masonry feel
+          const heights = ["h-48", "h-64", "h-56", "h-72", "h-52", "h-60", "h-44", "h-80"];
+          const h = heights[i % heights.length];
 
-        return (
-          <Link
-            key={post.id}
-            to={`/post/${post.slug}`}
-            className="block rounded-xl overflow-hidden group hover-lift bg-card border border-border shadow-sm"
-          >
-            <div className="aspect-video relative">
-              <img
-                src={post.featured_image || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&h=400&fit=crop"}
-                alt={post.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                loading="lazy"
-              />
-              {catName && (
-                <span className={`absolute top-2 left-2 ${catType === "news" ? "tag-news" : catType === "blog" ? "tag-blog" : "tag-directory"}`}>
-                  {catName}
-                </span>
-              )}
-            </div>
-            <div className="p-3">
-              <h3 className="text-sm font-heading font-bold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                {post.title}
-              </h3>
-              {post.excerpt && (
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{post.excerpt}</p>
-              )}
-            </div>
-          </Link>
-        );
-      })}
+          return (
+            <Link
+              key={post.id}
+              to={`/post/${post.slug}`}
+              className="mb-3 break-inside-avoid block rounded-xl overflow-hidden group hover-lift bg-card border border-border shadow-sm"
+            >
+              <div className={`relative ${h} w-full overflow-hidden`}>
+                <img
+                  src={post.featured_image || "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&h=600&fit=crop"}
+                  alt={post.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                {catName && (
+                  <span className={`absolute top-2 left-2 ${catType === "news" ? "tag-news" : catType === "blog" ? "tag-blog" : "tag-directory"}`}>
+                    {catName}
+                  </span>
+                )}
+              </div>
+              <div className="p-3">
+                <h3 className="text-sm font-heading font-bold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                  {post.title}
+                </h3>
+                {post.excerpt && (
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{post.excerpt}</p>
+                )}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
 
       {/* Infinite scroll trigger */}
-      <div ref={loaderRef} className="col-span-full py-4 text-center">
+      <div ref={loaderRef} className="py-4 text-center">
         {isFetching && <span className="text-sm text-muted-foreground">আরও লোড হচ্ছে...</span>}
         {!hasMore && allPosts.length > 0 && (
           <span className="text-xs text-muted-foreground">সব পোস্ট দেখানো হয়েছে</span>
         )}
       </div>
-    </div>
+    </>
   );
 }

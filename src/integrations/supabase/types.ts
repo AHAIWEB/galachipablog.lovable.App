@@ -570,6 +570,7 @@ export type Database = {
           is_locked: boolean
           share_count: number
           slug: string
+          source_url: string | null
           status: Database["public"]["Enums"]["post_status"]
           title: string
           updated_at: string
@@ -588,6 +589,7 @@ export type Database = {
           is_locked?: boolean
           share_count?: number
           slug: string
+          source_url?: string | null
           status?: Database["public"]["Enums"]["post_status"]
           title: string
           updated_at?: string
@@ -606,6 +608,7 @@ export type Database = {
           is_locked?: boolean
           share_count?: number
           slug?: string
+          source_url?: string | null
           status?: Database["public"]["Enums"]["post_status"]
           title?: string
           updated_at?: string

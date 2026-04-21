@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Users, CreditCard, Eye, Layout, Link2, Rss, Archive, ExternalLink } from "lucide-react";
+import { FileText, Users, CreditCard, Eye, Layout, Link2, Rss, Archive, ExternalLink, Download, Code2 } from "lucide-react";
 
 export default function AdminDashboard() {
   const { data: postCount } = useQuery({
@@ -108,6 +108,43 @@ export default function AdminDashboard() {
   return (
     <div>
       <h1 className="font-heading font-bold text-2xl mb-6">📊 ড্যাশবোর্ড</h1>
+
+      {/* Blogger Theme Download Card */}
+      <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl p-5 mb-6 shadow-lg">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-[240px]">
+            <h2 className="font-heading font-bold text-lg flex items-center gap-2 mb-1">
+              <Code2 className="h-5 w-5" /> Blogger.com Theme (.xml)
+            </h2>
+            <p className="text-sm opacity-95 leading-relaxed">
+              এই সাইটের পুরো ডিজাইন (header, masonry grid, sidebar widgets, this-day, gallery) সহ Blogger XML থিম ডাউনলোড করুন। Blogger Dashboard → Theme → Backup/Restore → Upload করুন। সব ডাটা Supabase API থেকে লাইভ লোড হবে।
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <a
+              href="/galachipa-blogger-theme.xml"
+              download="galachipa-blogger-theme.xml"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-orange-600 rounded-lg font-heading font-bold text-sm hover:bg-orange-50 transition-colors shadow"
+            >
+              <Download className="h-4 w-4" /> XML ডাউনলোড
+            </a>
+            <a
+              href="https://www.blogger.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-white/15 hover:bg-white/25 backdrop-blur rounded-lg text-xs transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Blogger খুলুন
+            </a>
+          </div>
+        </div>
+        <div className="mt-3 pt-3 border-t border-white/20 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <span className="bg-white/15 rounded px-2 py-1 text-center">✓ Masonry Grid</span>
+          <span className="bg-white/15 rounded px-2 py-1 text-center">✓ Mega Menu</span>
+          <span className="bg-white/15 rounded px-2 py-1 text-center">✓ This-Day Widget</span>
+          <span className="bg-white/15 rounded px-2 py-1 text-center">✓ Photo Gallery</span>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map(s => (

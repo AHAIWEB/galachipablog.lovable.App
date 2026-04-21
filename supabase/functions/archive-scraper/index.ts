@@ -190,21 +190,27 @@ function extractContent(html: string, url: string): {
     }
   }
 
-  // Clean content - preserve structure
+  // Clean content - aggressive removal of non-article noise
   let content = rawContent
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
     .replace(/<nav[\s\S]*?<\/nav>/gi, '')
     .replace(/<footer[\s\S]*?<\/footer>/gi, '')
     .replace(/<header[\s\S]*?<\/header>/gi, '')
     .replace(/<aside[\s\S]*?<\/aside>/gi, '')
     .replace(/<form[\s\S]*?<\/form>/gi, '')
     .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<button[\s\S]*?<\/button>/gi, '')
+    .replace(/<select[\s\S]*?<\/select>/gi, '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<div[^>]*class=["'][^"']*(?:sidebar|widget|comment|share|social|related|advertisement|ad-|popup|modal|cookie|newsletter|subscribe)[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '')
+    // Remove navigation/menu/category/widget/sidebar/share/related/breadcrumb/comment containers
+    .replace(/<(?:div|section|ul|ol)[^>]*(?:class|id)=["'][^"']*(?:menu|navbar|nav-|navigation|breadcrumb|sidebar|widget|comment|share|social|related|recommend|popular|trending|advertisement|ad-|adsbygoogle|popup|modal|cookie|newsletter|subscribe|tags?-list|cat(?:egory)?-list|categories|tags-cloud|footer|header|toolbar|toc|table-of-contents|author-bio|meta-info|post-meta|post-nav|pagination|prev-next|reaction|rating|email-form|signup|login|search-form|skip-link|screen-reader)[^"']*["'][^>]*>[\s\S]*?<\/(?:div|section|ul|ol)>/gi, '')
+    // Remove menu/list items with class "menu-item"
+    .replace(/<li[^>]*class=["'][^"']*menu-item[^"']*["'][^>]*>[\s\S]*?<\/li>/gi, '')
     .trim();
 
-  // Convert HTML to clean text while preserving paragraphs
   content = content
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
@@ -221,8 +227,27 @@ function extractContent(html: string, url: string): {
     .replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, '\n\n')
     .replace(/[ \t]+/g, ' ')
-    .trim()
-    .slice(0, 30000);
+    .trim();
+
+  // Remove repeated short navigation lines (likely menu items leaking through)
+  const lines = content.split('\n');
+  const cleanedLines: string[] = [];
+  const seenShort = new Set<string>();
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) { cleanedLines.push(''); continue; }
+    // Drop very short lines that look like menu items (single-word or category-only)
+    if (trimmed.length < 25 && /^[\u0980-\u09FF\w\s|»>·-]+$/.test(trimmed)) {
+      if (seenShort.has(trimmed)) continue;
+      seenShort.add(trimmed);
+      // Skip if it appears more than 3 times in original
+      const count = (content.match(new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+      if (count >= 2) continue;
+    }
+    cleanedLines.push(line);
+  }
+  content = cleanedLines.join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 30000);
+
 
   // Extract all images from content area
   const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*/gi;

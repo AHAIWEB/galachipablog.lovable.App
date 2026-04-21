@@ -124,15 +124,49 @@ function CategoryPostsWidget({ config, type }: { config: any; type: "news" | "bl
 
 function PhotoGalleryWidget({ config }: { config: any }) {
   const limit = config?.limit || 9;
+  // source: "gallery" | "posts" | "mix" (default mix)
+  const source = config?.source || "mix";
+  const customLabel = config?.label;
+
   const { data: images = [] } = useQuery({
-    queryKey: ["widget-gallery", limit],
+    queryKey: ["widget-gallery-mix", source, limit],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("post_images")
-        .select("id, image_url, caption")
-        .order("created_at", { ascending: false })
-        .limit(limit);
-      return data ?? [];
+      const results: { id: string; image_url: string; caption?: string | null; link?: string }[] = [];
+
+      if (source === "gallery" || source === "mix") {
+        const { data } = await supabase
+          .from("post_images")
+          .select("id, image_url, caption, post_id, posts(slug)")
+          .order("created_at", { ascending: false })
+          .limit(source === "mix" ? Math.ceil(limit / 2) : limit);
+        (data || []).forEach((d: any) => results.push({
+          id: `g-${d.id}`, image_url: d.image_url, caption: d.caption,
+          link: d.posts?.slug ? `/post/${d.posts.slug}` : undefined,
+        }));
+      }
+
+      if (source === "posts" || source === "mix") {
+        const { data } = await supabase
+          .from("posts")
+          .select("id, slug, title, featured_image")
+          .eq("status", "published")
+          .not("featured_image", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(source === "mix" ? Math.ceil(limit / 2) : limit);
+        (data || []).forEach((p: any) => {
+          if (p.featured_image) results.push({
+            id: `p-${p.id}`, image_url: p.featured_image, caption: p.title,
+            link: `/post/${p.slug}`,
+          });
+        });
+      }
+
+      // dedupe by image_url and trim
+      const seen = new Set<string>();
+      return results.filter(r => {
+        if (seen.has(r.image_url)) return false;
+        seen.add(r.image_url); return true;
+      }).slice(0, limit);
     },
   });
 
@@ -140,11 +174,25 @@ function PhotoGalleryWidget({ config }: { config: any }) {
 
   return (
     <>
+      {customLabel && (
+        <div className="px-3 py-1.5 text-[11px] text-muted-foreground border-b border-border bg-muted/30">{customLabel}</div>
+      )}
       <div className="grid grid-cols-3 gap-1 p-2">
         {images.map(img => (
-          <button key={img.id} onClick={() => setLightbox(img.image_url)} className="aspect-square rounded overflow-hidden hover:opacity-80 transition-opacity">
-            <img src={img.image_url} alt={img.caption || ""} className="w-full h-full object-cover" />
-          </button>
+          img.link ? (
+            <RouterLink key={img.id} to={img.link} className="aspect-square rounded overflow-hidden hover:opacity-80 transition-opacity relative group">
+              <img src={img.image_url} alt={img.caption || ""} className="w-full h-full object-cover" loading="lazy" />
+              {img.caption && (
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <p className="text-[9px] text-white line-clamp-2 leading-tight">{img.caption}</p>
+                </div>
+              )}
+            </RouterLink>
+          ) : (
+            <button key={img.id} onClick={() => setLightbox(img.image_url)} className="aspect-square rounded overflow-hidden hover:opacity-80 transition-opacity">
+              <img src={img.image_url} alt={img.caption || ""} className="w-full h-full object-cover" loading="lazy" />
+            </button>
+          )
         ))}
         {images.length === 0 && <p className="col-span-3 text-xs text-muted-foreground p-2">ছবি নেই</p>}
       </div>

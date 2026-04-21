@@ -289,6 +289,39 @@ function extractContent(html: string, url: string): {
   return { title, content, excerpt, featured_image, images, tags, source_url: url };
 }
 
+async function aiPolishContent(title: string, content: string): Promise<string | null> {
+  const apiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!apiKey) return null;
+  // Skip if too short
+  if (content.length < 200) return null;
+  try {
+    const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [
+          {
+            role: 'system',
+            content: 'তুমি একটি কন্টেন্ট ক্লিনার। ইনপুট থেকে শুধুমাত্র মূল আর্টিকেল/পোস্টের লেখা রিটার্ন করবে। মেনু/নেভিগেশন/ক্যাটাগরি লিস্ট/সাইডবার/ফুটার/বিজ্ঞাপন/সম্পর্কিত পোস্ট/শেয়ার বাটন/কমেন্ট/সাবস্ক্রাইব ইত্যাদি বাদ দিবে। প্যারাগ্রাফ ফরম্যাটিং রাখবে। কোন ব্যাখ্যা বা মন্তব্য করবে না, শুধু পরিষ্কার করা মূল লেখা রিটার্ন করবে।',
+          },
+          {
+            role: 'user',
+            content: `শিরোনাম: ${title}\n\nকন্টেন্ট:\n${content.slice(0, 8000)}`,
+          },
+        ],
+      }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const cleaned = (data.choices?.[0]?.message?.content || '').trim();
+    if (cleaned.length < 50) return null;
+    return cleaned;
+  } catch {
+    return null;
+  }
+}
+
 async function scrapeAndSave(
   url: string, category: string | undefined, source_name: string | undefined,
   schedule_id: string | undefined, serviceClient: any
@@ -310,10 +343,14 @@ async function scrapeAndSave(
     return { url, success: false, error: 'No meaningful content found' };
   }
 
+  // AI polish (combine DOM cleaning + AI extraction of main content only)
+  const polished = await aiPolishContent(extracted.title, extracted.content);
+  const finalContent = polished || extracted.content;
+
   const { error: insertError } = await serviceClient.from('archived_contents').insert({
     source_url: url,
     title: extracted.title,
-    content: extracted.content,
+    content: finalContent,
     excerpt: extracted.excerpt,
     featured_image: extracted.featured_image,
     images: JSON.stringify(extracted.images),
@@ -330,10 +367,11 @@ async function scrapeAndSave(
 
   return {
     url, success: true, title: extracted.title,
-    contentLength: extracted.content.length,
+    contentLength: finalContent.length,
     imagesCount: extracted.images.length,
     tagsCount: extracted.tags.length,
     hasExcerpt: !!extracted.excerpt,
     hasFeaturedImage: !!extracted.featured_image,
+    aiPolished: !!polished,
   };
 }

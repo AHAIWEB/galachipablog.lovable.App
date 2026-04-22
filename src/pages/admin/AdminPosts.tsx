@@ -182,16 +182,92 @@ export default function AdminPosts() {
     }
   };
 
-  // Copy post as Blogger-ready HTML to clipboard (no API needed)
-  const copyAsBloggerHtml = async (post: Post) => {
+  // HTML escape helper
+  const escapeHtml = (s: string) => (s || '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!
+  ));
+
+  // Build Blogger-ready HTML for a single post (gallery images, alt, source link, valid HTML)
+  const buildBloggerHtml = async (post: Post): Promise<string> => {
     const url = `${window.location.origin}/post/${post.slug}`;
-    const html = `${post.featured_image ? `<p><img src="${post.featured_image}" alt="${post.title}" style="max-width:100%;height:auto;"/></p>\n` : ''}${post.content || post.excerpt || ''}\n${post.source_url ? `<p><small>মূল সূত্র: <a href="${post.source_url}" target="_blank" rel="noopener">${post.source_url}</a></small></p>\n` : ''}<p><small>সাইটে দেখুন: <a href="${url}" target="_blank" rel="noopener">${url}</a></small></p>`;
-    try {
-      await navigator.clipboard.writeText(html);
-      toast.success("HTML কপি হয়েছে! Blogger editor-এ paste করুন (HTML view-তে)");
-    } catch {
-      toast.error("কপি ব্যর্থ");
+    const { data: imgs } = await supabase.from("post_images").select("image_url, caption").eq("post_id", post.id).order("sort_order");
+    const galleryImages = imgs ?? [];
+
+    const parts: string[] = [];
+    if (post.featured_image) {
+      parts.push(`<p><img src="${escapeHtml(post.featured_image)}" alt="${escapeHtml(post.title)}" style="max-width:100%;height:auto;display:block;margin:0 auto;" /></p>`);
     }
+    if (post.content && post.content.trim()) {
+      parts.push(`<div>${post.content}</div>`);
+    } else if (post.excerpt) {
+      parts.push(`<p>${escapeHtml(post.excerpt)}</p>`);
+    }
+    const extra = galleryImages.filter(i => i.image_url !== post.featured_image);
+    if (extra.length > 0) {
+      parts.push('<div style="margin-top:16px;">');
+      for (const img of extra) {
+        const alt = img.caption || post.title;
+        parts.push(`<p><img src="${escapeHtml(img.image_url)}" alt="${escapeHtml(alt)}" style="max-width:100%;height:auto;display:block;margin:8px auto;" />${img.caption ? `<br/><em style="font-size:0.9em;color:#666;">${escapeHtml(img.caption)}</em>` : ''}</p>`);
+      }
+      parts.push('</div>');
+    }
+    if (post.source_url) {
+      parts.push(`<p style="margin-top:20px;font-size:0.9em;color:#666;">মূল সূত্র: <a href="${escapeHtml(post.source_url)}" target="_blank" rel="noopener">${escapeHtml(post.source_url)}</a></p>`);
+    }
+    parts.push(`<p style="font-size:0.85em;color:#888;">সাইটে দেখুন: <a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a></p>`);
+    return parts.join('\n');
+  };
+
+  const copyAsBloggerHtml = async (post: Post) => {
+    try {
+      const html = await buildBloggerHtml(post);
+      await navigator.clipboard.writeText(html);
+      toast.success("HTML কপি হয়েছে! Blogger editor (HTML view)-এ paste করুন");
+    } catch (err: any) {
+      toast.error("কপি ব্যর্থ: " + (err?.message || ""));
+    }
+  };
+
+  // Bulk copy multiple posts as one HTML doc — mobile single-tap friendly
+  const bulkCopyHtml = async () => {
+    const selected = (posts ?? []).filter(p => selectedIds.has(p.id));
+    if (selected.length === 0) return toast.error("পোস্ট সিলেক্ট করুন");
+    try {
+      const blocks: string[] = [];
+      for (const post of selected) {
+        const body = await buildBloggerHtml(post);
+        blocks.push(`<!-- ===== POST: ${escapeHtml(post.title)} ===== -->\n<h2>${escapeHtml(post.title)}</h2>\n${body}\n<hr style="margin:30px 0;" />`);
+      }
+      await navigator.clipboard.writeText(blocks.join('\n\n'));
+      toast.success(`${selected.length}টি পোস্টের HTML কপি হয়েছে!`);
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      toast.error("কপি ব্যর্থ: " + (err?.message || ""));
+    }
+  };
+
+  // RSS preview state
+  const [rssOpen, setRssOpen] = useState(false);
+  const [rssLimit, setRssLimit] = useState(10);
+  const [rssLoading, setRssLoading] = useState(false);
+  const [rssText, setRssText] = useState("");
+
+  const loadRssPreview = async (limit: number) => {
+    setRssLoading(true);
+    setRssLimit(limit);
+    try {
+      const res = await fetch(`https://fhtyknfxfafzncjdnana.supabase.co/functions/v1/rss-feed?limit=${limit}`);
+      setRssText(await res.text());
+    } catch (err: any) {
+      setRssText("Error: " + (err?.message || ""));
+    } finally {
+      setRssLoading(false);
+    }
+  };
+
+  const openRssPreview = () => {
+    setRssOpen(true);
+    if (!rssText) loadRssPreview(10);
   };
 
   const resetForm = () => {

@@ -315,22 +315,74 @@ export default function AdminPosts() {
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="font-heading font-bold text-2xl">📝 কন্টেন্ট হাব</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {selectedIds.size > 0 && (
-            <button onClick={bulkPublishBlogger} disabled={isBulkPublishing}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium disabled:opacity-50">
-              <Globe className="h-4 w-4" />
-              {isBulkPublishing ? "পাবলিশ হচ্ছে..." : `Blogger (${selectedIds.size})`}
-            </button>
+            <>
+              <button onClick={bulkCopyHtml}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">
+                <Copy className="h-4 w-4" /> HTML কপি ({selectedIds.size})
+              </button>
+              <button onClick={bulkPublishBlogger} disabled={isBulkPublishing}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium disabled:opacity-50">
+                <Globe className="h-4 w-4" />
+                {isBulkPublishing ? "পাবলিশ..." : `Blogger (${selectedIds.size})`}
+              </button>
+            </>
           )}
-          <a href="/rss.xml" target="_blank" rel="noopener" className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 text-xs font-medium hover:bg-orange-200" title="RSS Feed (IFTTT/Zapier-এ ব্যবহার করুন)">
-            <Rss className="h-3.5 w-3.5" /> RSS
-          </a>
+          <button onClick={openRssPreview} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 text-xs font-medium hover:bg-orange-200" title="RSS Feed প্রিভিউ ও টেস্ট">
+            <Rss className="h-3.5 w-3.5" /> RSS প্রিভিউ
+          </button>
           <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
             <Plus className="h-4 w-4" /> নতুন পোস্ট
           </button>
         </div>
       </div>
+
+      {/* RSS Preview Modal */}
+      {rssOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-3" onClick={() => setRssOpen(false)}>
+          <div className="bg-card rounded-xl border border-border w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div>
+                <h2 className="font-heading font-bold text-lg flex items-center gap-2"><Rss className="h-5 w-5 text-orange-600" /> RSS Feed প্রিভিউ</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">URL: <code className="bg-muted px-1 rounded">/rss.xml?limit={rssLimit}</code></p>
+              </div>
+              <button onClick={() => setRssOpen(false)} className="p-1.5 hover:bg-muted rounded"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="p-3 border-b border-border flex gap-2 flex-wrap items-center">
+              <span className="text-xs text-muted-foreground">আইটেম সংখ্যা:</span>
+              {[10, 25, 50, 100].map(n => (
+                <button key={n} onClick={() => loadRssPreview(n)}
+                  className={`px-3 py-1 rounded-md text-xs font-medium ${rssLimit === n ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/70'}`}>
+                  {n}
+                </button>
+              ))}
+              <button onClick={() => loadRssPreview(rssLimit)} disabled={rssLoading} className="ml-auto px-3 py-1 rounded-md text-xs bg-muted hover:bg-muted/70 disabled:opacity-50">
+                {rssLoading ? "লোড..." : "🔄 রিফ্রেশ"}
+              </button>
+              <a href={`https://fhtyknfxfafzncjdnana.supabase.co/functions/v1/rss-feed?limit=${rssLimit}`} target="_blank" rel="noopener" className="px-3 py-1 rounded-md text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 hover:bg-orange-200">
+                নতুন ট্যাবে ↗
+              </a>
+              <button onClick={async () => {
+                await navigator.clipboard.writeText(`https://galachipablog.lovable.app/rss.xml?limit=${rssLimit}`);
+                toast.success("RSS URL কপি হয়েছে!");
+              }} className="px-3 py-1 rounded-md text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-200">
+                URL কপি
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-3">
+              {rssLoading ? (
+                <p className="text-sm text-muted-foreground">লোড হচ্ছে...</p>
+              ) : (
+                <pre className="text-[11px] bg-muted/30 p-3 rounded-md whitespace-pre-wrap break-all font-mono leading-relaxed">{rssText}</pre>
+              )}
+            </div>
+            <div className="p-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+              💡 এই URL টি IFTTT/Zapier-এর "RSS Feed → Blogger" automation-এ ব্যবহার করুন।
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Feed articles summary */}
       {feedArticles && feedArticles.length > 0 && (

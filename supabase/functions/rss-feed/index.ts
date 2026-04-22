@@ -10,7 +10,7 @@ const SITE_TITLE = "গলাচিপা ব্লগ";
 const SITE_DESC = "বাংলা ব্লগ ও সংবাদ পোর্টাল";
 
 function escapeXml(unsafe: string): string {
-  return unsafe.replace(/[<>&'"]/g, (c) => {
+  return (unsafe || '').replace(/[<>&'"]/g, (c) => {
     switch (c) {
       case '<': return '&lt;';
       case '>': return '&gt;';
@@ -26,6 +26,34 @@ function escapeCData(s: string): string {
   return (s || '').replace(/]]>/g, ']]]]><![CDATA[>');
 }
 
+// Detect MIME type from image URL extension
+function getImageMime(url: string): string {
+  const u = (url || '').toLowerCase().split('?')[0];
+  if (u.endsWith('.png')) return 'image/png';
+  if (u.endsWith('.gif')) return 'image/gif';
+  if (u.endsWith('.webp')) return 'image/webp';
+  if (u.endsWith('.svg')) return 'image/svg+xml';
+  if (u.endsWith('.avif')) return 'image/avif';
+  if (u.endsWith('.bmp')) return 'image/bmp';
+  return 'image/jpeg';
+}
+
+// Extract first image from HTML content as fallback
+function extractFirstImage(html: string): string | null {
+  if (!html) return null;
+  const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return m ? m[1] : null;
+}
+
+// Make image URL absolute
+function absolutize(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('//')) return 'https:' + url;
+  if (url.startsWith('/')) return SITE_URL + url;
+  return url;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -38,9 +66,12 @@ Deno.serve(async (req) => {
     );
 
     const url = new URL(req.url);
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+    // ?limit=10/25/50 — clamped between 1 and 200; default 50
+    const rawLimit = parseInt(url.searchParams.get('limit') || '50', 10);
+    const limit = Math.min(Math.max(isNaN(rawLimit) ? 50 : rawLimit, 1), 200);
+    const categorySlug = url.searchParams.get('category');
 
-    const { data: posts, error } = await supabase
+    let query = supabase
       .from('posts')
       .select('id, title, slug, excerpt, content, featured_image, created_at, updated_at, source_url, categories(name, slug)')
       .eq('status', 'published')
@@ -48,15 +79,29 @@ Deno.serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(limit);
 
+    if (categorySlug) {
+      const { data: cat } = await supabase.from('categories').select('id').eq('slug', categorySlug).maybeSingle();
+      if (cat) query = query.eq('category_id', cat.id);
+    }
+
+    const { data: posts, error } = await query;
     if (error) throw error;
 
     const items = (posts || []).map((p: any) => {
       const link = `${SITE_URL}/post/${p.slug}`;
       const pubDate = new Date(p.created_at).toUTCString();
       const description = p.excerpt || (p.content || '').replace(/<[^>]+>/g, '').slice(0, 300);
-      const contentHtml = `${p.featured_image ? `<p><img src="${escapeXml(p.featured_image)}" alt=""/></p>` : ''}${p.content || ''}${p.source_url ? `<p><small>মূল সূত্র: <a href="${escapeXml(p.source_url)}">${escapeXml(p.source_url)}</a></small></p>` : ''}`;
+
+      // Resolve image: featured_image first, then first <img> in content
+      const rawImg = p.featured_image || extractFirstImage(p.content || '');
+      const imgUrl = rawImg ? absolutize(rawImg) : '';
+      const imgMime = imgUrl ? getImageMime(imgUrl) : '';
+      const altText = p.title || '';
+
+      const contentHtml = `${imgUrl ? `<p><img src="${escapeXml(imgUrl)}" alt="${escapeXml(altText)}"/></p>` : ''}${p.content || ''}${p.source_url ? `<p><small>মূল সূত্র: <a href="${escapeXml(p.source_url)}" rel="noopener">${escapeXml(p.source_url)}</a></small></p>` : ''}`;
       const category = p.categories?.name ? `<category>${escapeXml(p.categories.name)}</category>` : '';
-      const enclosure = p.featured_image ? `<enclosure url="${escapeXml(p.featured_image)}" type="image/jpeg"/>` : '';
+      const enclosure = imgUrl ? `<enclosure url="${escapeXml(imgUrl)}" type="${imgMime}" length="0"/>` : '';
+      const mediaContent = imgUrl ? `<media:content url="${escapeXml(imgUrl)}" medium="image" type="${imgMime}"/>` : '';
 
       return `    <item>
       <title><![CDATA[${escapeCData(p.title)}]]></title>
@@ -65,6 +110,7 @@ Deno.serve(async (req) => {
       <pubDate>${pubDate}</pubDate>
       ${category}
       ${enclosure}
+      ${mediaContent}
       <description><![CDATA[${escapeCData(description)}]]></description>
       <content:encoded><![CDATA[${escapeCData(contentHtml)}]]></content:encoded>
     </item>`;
@@ -73,14 +119,14 @@ Deno.serve(async (req) => {
     const lastBuild = posts && posts.length > 0 ? new Date(posts[0].created_at).toUTCString() : new Date().toUTCString();
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
     <title>${escapeXml(SITE_TITLE)}</title>
     <link>${SITE_URL}</link>
     <description>${escapeXml(SITE_DESC)}</description>
     <language>bn</language>
     <lastBuildDate>${lastBuild}</lastBuildDate>
-    <atom:link href="${SITE_URL}/rss.xml" rel="self" type="application/rss+xml"/>
+    <atom:link href="${SITE_URL}/rss.xml?limit=${limit}" rel="self" type="application/rss+xml"/>
 ${items}
   </channel>
 </rss>`;

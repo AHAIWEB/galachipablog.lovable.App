@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image, Star, Copy, Rss } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Post = Tables<"posts">;
@@ -179,6 +179,18 @@ export default function AdminPosts() {
     } else {
       await navigator.clipboard.writeText(url);
       toast.success("লিংক কপি হয়েছে!");
+    }
+  };
+
+  // Copy post as Blogger-ready HTML to clipboard (no API needed)
+  const copyAsBloggerHtml = async (post: Post) => {
+    const url = `${window.location.origin}/post/${post.slug}`;
+    const html = `${post.featured_image ? `<p><img src="${post.featured_image}" alt="${post.title}" style="max-width:100%;height:auto;"/></p>\n` : ''}${post.content || post.excerpt || ''}\n${post.source_url ? `<p><small>মূল সূত্র: <a href="${post.source_url}" target="_blank" rel="noopener">${post.source_url}</a></small></p>\n` : ''}<p><small>সাইটে দেখুন: <a href="${url}" target="_blank" rel="noopener">${url}</a></small></p>`;
+    try {
+      await navigator.clipboard.writeText(html);
+      toast.success("HTML কপি হয়েছে! Blogger editor-এ paste করুন (HTML view-তে)");
+    } catch {
+      toast.error("কপি ব্যর্থ");
     }
   };
 

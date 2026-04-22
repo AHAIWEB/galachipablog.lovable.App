@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image, Star, Copy, Rss } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Post = Tables<"posts">;
@@ -182,6 +182,18 @@ export default function AdminPosts() {
     }
   };
 
+  // Copy post as Blogger-ready HTML to clipboard (no API needed)
+  const copyAsBloggerHtml = async (post: Post) => {
+    const url = `${window.location.origin}/post/${post.slug}`;
+    const html = `${post.featured_image ? `<p><img src="${post.featured_image}" alt="${post.title}" style="max-width:100%;height:auto;"/></p>\n` : ''}${post.content || post.excerpt || ''}\n${post.source_url ? `<p><small>মূল সূত্র: <a href="${post.source_url}" target="_blank" rel="noopener">${post.source_url}</a></small></p>\n` : ''}<p><small>সাইটে দেখুন: <a href="${url}" target="_blank" rel="noopener">${url}</a></small></p>`;
+    try {
+      await navigator.clipboard.writeText(html);
+      toast.success("HTML কপি হয়েছে! Blogger editor-এ paste করুন (HTML view-তে)");
+    } catch {
+      toast.error("কপি ব্যর্থ");
+    }
+  };
+
   const resetForm = () => {
     setForm({ title: "", slug: "", content: "", excerpt: "", featured_image: "", category_id: "", status: "draft", is_featured: false });
     setEditing(null);
@@ -235,6 +247,9 @@ export default function AdminPosts() {
               {isBulkPublishing ? "পাবলিশ হচ্ছে..." : `Blogger (${selectedIds.size})`}
             </button>
           )}
+          <a href="/rss.xml" target="_blank" rel="noopener" className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 text-xs font-medium hover:bg-orange-200" title="RSS Feed (IFTTT/Zapier-এ ব্যবহার করুন)">
+            <Rss className="h-3.5 w-3.5" /> RSS
+          </a>
           <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
             <Plus className="h-4 w-4" /> নতুন পোস্ট
           </button>
@@ -431,7 +446,8 @@ export default function AdminPosts() {
                      <Star className={`h-3.5 w-3.5 ${post.is_featured ? "fill-current" : ""}`} />
                    </button>
                    <button onClick={() => sharePost(post)} className="p-1.5 hover:bg-muted rounded" title="শেয়ার"><Share2 className="h-3.5 w-3.5" /></button>
-                   <button onClick={() => publishBlogger(post)} className="p-1.5 hover:bg-muted rounded" title="Blogger"><Globe className="h-3.5 w-3.5" /></button>
+                   <button onClick={() => copyAsBloggerHtml(post)} className="p-1.5 hover:bg-muted rounded text-blue-600" title="Blogger HTML কপি (manual paste)"><Copy className="h-3.5 w-3.5" /></button>
+                   <button onClick={() => publishBlogger(post)} className="p-1.5 hover:bg-muted rounded" title="Blogger API"><Globe className="h-3.5 w-3.5" /></button>
                    <button onClick={() => startEdit(post)} className="p-1.5 hover:bg-muted rounded" title="সম্পাদনা"><Pencil className="h-3.5 w-3.5" /></button>
                    <button onClick={() => { if (confirm("বিনে সরাবেন?")) deleteMutation.mutate(post.id); }} className="p-1.5 hover:bg-destructive/10 rounded text-destructive" title="মুছুন"><Trash2 className="h-3.5 w-3.5" /></button>
                  </div>

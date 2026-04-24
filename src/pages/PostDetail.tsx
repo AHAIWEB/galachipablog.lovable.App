@@ -231,9 +231,39 @@ export default function PostDetail() {
 
             {/* Content */}
             <div className="bg-card rounded-2xl border border-border p-6 md:p-8 mt-4 shadow-sm animate-fade-in prose-content">
-              <div className="text-foreground/90 leading-relaxed text-base md:text-lg whitespace-pre-wrap font-body">
-                {post.content}
-              </div>
+              {(() => {
+                const raw = post.content || "";
+                // Detect HTML content
+                const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(raw);
+                if (!looksLikeHtml) {
+                  return (
+                    <div className="text-foreground/90 leading-relaxed text-base md:text-lg whitespace-pre-wrap font-body">
+                      {raw}
+                    </div>
+                  );
+                }
+                // Sanitize: strip doctype/html/head/meta/link/title/script/style/body tags
+                let cleaned = raw;
+                const bodyMatch = cleaned.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+                if (bodyMatch) cleaned = bodyMatch[1];
+                cleaned = cleaned
+                  .replace(/<!DOCTYPE[^>]*>/gi, "")
+                  .replace(/<\/?html[^>]*>/gi, "")
+                  .replace(/<head[\s\S]*?<\/head>/gi, "")
+                  .replace(/<\/?body[^>]*>/gi, "")
+                  .replace(/<script[\s\S]*?<\/script>/gi, "")
+                  .replace(/<style[\s\S]*?<\/style>/gi, "")
+                  .replace(/<link[^>]*>/gi, "")
+                  .replace(/<meta[^>]*>/gi, "")
+                  .replace(/<base[^>]*>/gi, "")
+                  .replace(/<title[\s\S]*?<\/title>/gi, "");
+                return (
+                  <div
+                    className="text-foreground/90 leading-relaxed text-base md:text-lg font-body wiki-content"
+                    dangerouslySetInnerHTML={{ __html: cleaned }}
+                  />
+                );
+              })()}
 
               {/* Source link */}
               {(post as any).source_url && (

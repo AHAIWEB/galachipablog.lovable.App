@@ -73,12 +73,19 @@ Deno.serve(async (req) => {
       const expanded: string[] = [];
       for (const u of urls) {
         if (typeof u !== 'string') continue;
-        const parts = u.split(/👉|\n|,|\s{2,}/g).map(s => s.trim()).filter(Boolean);
-        for (const p of parts) {
-          if (p.startsWith('http')) expanded.push(p);
+        // Split on 👉 emoji, newlines, commas. Then also split on 'http' boundaries
+        // in case separators were stripped during transport.
+        const rawParts = u.split(/👉|\n|,/g).map(s => s.trim()).filter(Boolean);
+        for (const part of rawParts) {
+          // Handle case where multiple URLs got concatenated without our separators
+          const subParts = part.split(/(?=https?:\/\/)/g).map(s => s.trim()).filter(Boolean);
+          for (const p of subParts) {
+            if (p.startsWith('http')) expanded.push(p);
+          }
         }
       }
       personUrls = Array.from(new Set(expanded)).slice(0, limit);
+      console.log('Parsed person URLs:', personUrls);
     } else {
       // Discover via Wikipedia categories
       const categoriesToScrape = category_tag

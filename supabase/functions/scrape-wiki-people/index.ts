@@ -262,6 +262,23 @@ async function fetchWikiArticleHtml(wikiUrl: string): Promise<{ html: string; ti
 function cleanWikiHtml(rawHtml: string): string {
   let html = rawHtml;
 
+  // If we got a full HTML document (REST API returns <!DOCTYPE html>...<body>...</body></html>),
+  // extract only the body's inner content. Parsoid wraps article in <body> directly.
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) {
+    html = bodyMatch[1];
+  }
+
+  // Strip <!DOCTYPE> and <html>/<head> tags if any leaked through
+  html = html.replace(/<!DOCTYPE[^>]*>/gi, '');
+  html = html.replace(/<\/?html[^>]*>/gi, '');
+  html = html.replace(/<head[\s\S]*?<\/head>/gi, '');
+  html = html.replace(/<\/?body[^>]*>/gi, '');
+  html = html.replace(/<link[^>]*>/gi, '');
+  html = html.replace(/<meta[^>]*>/gi, '');
+  html = html.replace(/<base[^>]*>/gi, '');
+  html = html.replace(/<title[\s\S]*?<\/title>/gi, '');
+
   // Remove script/style
   html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
   html = html.replace(/<style[\s\S]*?<\/style>/gi, '');

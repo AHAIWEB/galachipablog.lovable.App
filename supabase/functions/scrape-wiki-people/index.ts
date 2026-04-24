@@ -322,10 +322,19 @@ async function scrapePersonPage(
     last_synced_at: new Date().toISOString(),
   };
 
-  // Upsert via source_url unique key
-  const { error: upsertErr } = await serviceClient
+  // Upsert via source_url unique key. Retry without auto_sync/html_content/last_synced_at
+  // if PostgREST schema cache hasn't picked them up yet.
+  let { error: upsertErr } = await serviceClient
     .from('archived_contents')
     .upsert(payload, { onConflict: 'source_url' });
+
+  if (upsertErr && /column/i.test(upsertErr.message)) {
+    const { auto_sync: _a, html_content: _h, last_synced_at: _l, ...legacy } = payload;
+    const retry = await serviceClient
+      .from('archived_contents')
+      .upsert(legacy, { onConflict: 'source_url' });
+    upsertErr = retry.error;
+  }
 
   if (upsertErr) return { url, success: false, error: upsertErr.message };
 

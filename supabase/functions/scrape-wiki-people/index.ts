@@ -69,15 +69,11 @@ Deno.serve(async (req) => {
         .limit(200);
       personUrls = (existing || []).map((r: any) => r.source_url);
     } else if (urls && Array.isArray(urls) && urls.length > 0) {
-      // Support 👉, newline, or comma separators per URL string
       const expanded: string[] = [];
       for (const u of urls) {
         if (typeof u !== 'string') continue;
-        // Split on 👉 emoji, newlines, commas. Then also split on 'http' boundaries
-        // in case separators were stripped during transport.
         const rawParts = u.split(/👉|\n|,/g).map(s => s.trim()).filter(Boolean);
         for (const part of rawParts) {
-          // Handle case where multiple URLs got concatenated without our separators
           const subParts = part.split(/(?=https?:\/\/)/g).map(s => s.trim()).filter(Boolean);
           for (const p of subParts) {
             if (p.startsWith('http')) expanded.push(p);
@@ -87,7 +83,6 @@ Deno.serve(async (req) => {
       personUrls = Array.from(new Set(expanded)).slice(0, limit);
       console.log('Parsed person URLs:', personUrls);
     } else {
-      // Discover via Wikipedia categories
       const categoriesToScrape = category_tag
         ? PEOPLE_CATEGORIES.filter(c => c.name === category_tag)
         : PEOPLE_CATEGORIES;
@@ -112,7 +107,7 @@ Deno.serve(async (req) => {
       personUrls = Array.from(discovered).slice(0, limit);
     }
 
-    const batchSize = 4;
+    const batchSize = 3;
     for (let i = 0; i < personUrls.length; i += batchSize) {
       const batch = personUrls.slice(i, i + batchSize);
       const batchResults = await Promise.allSettled(
@@ -144,60 +139,40 @@ Deno.serve(async (req) => {
   }
 });
 
-function encodeWikiUrl(url: string): string {
-  try {
-    const u = new URL(url);
-    u.pathname = u.pathname.split('/').map(seg => {
-      try { return encodeURIComponent(decodeURIComponent(seg)); } catch { return encodeURIComponent(seg); }
-    }).join('/');
-    return u.toString();
-  } catch { return url; }
-}
-
 async function fetchPage(url: string): Promise<Response | null> {
-  const encoded = encodeWikiUrl(url);
-
   for (let i = 0; i < 3; i++) {
     try {
-      const resp = await fetch(encoded, {
+      const resp = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 GalachipaBot/1.0',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) GalachipaBot/1.0',
           'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'bn,en;q=0.9',
         },
         redirect: 'follow',
       });
       if (resp.ok) return resp;
-      console.log(`fetch ${encoded} -> status ${resp.status}`);
 
-      // 404 → try resolving the title via Wikipedia opensearch (handles renames/typos)
       if (resp.status === 404) {
         const resolved = await resolveWikiTitle(url);
         if (resolved && resolved !== url) {
-          console.log(`Resolved 404 → ${resolved}`);
-          const r2 = await fetch(encodeWikiUrl(resolved), {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 GalachipaBot/1.0',
-              'Accept': 'text/html,application/xhtml+xml',
-            },
+          const r2 = await fetch(resolved, {
+            headers: { 'User-Agent': 'GalachipaBot/1.0', 'Accept': 'text/html' },
             redirect: 'follow',
           });
           if (r2.ok) return r2;
         }
         return null;
       }
-
       if (resp.status >= 500) { await new Promise(r => setTimeout(r, 1500 * (i + 1))); continue; }
       return null;
     } catch (e) {
-      console.log(`fetch ${encoded} threw:`, (e as Error).message);
+      console.log(`fetch threw:`, (e as Error).message);
       if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1)));
     }
   }
   return null;
 }
 
-// Use Wikipedia OpenSearch API to find the correct title when the supplied URL 404s.
 async function resolveWikiTitle(originalUrl: string): Promise<string | null> {
   try {
     const u = new URL(originalUrl);
@@ -209,7 +184,6 @@ async function resolveWikiTitle(originalUrl: string): Promise<string | null> {
     });
     if (!resp.ok) return null;
     const data = await resp.json();
-    // Format: [query, [titles], [descriptions], [urls]]
     if (Array.isArray(data) && Array.isArray(data[3]) && data[3][0]) {
       return data[3][0];
     }
@@ -217,7 +191,6 @@ async function resolveWikiTitle(originalUrl: string): Promise<string | null> {
   return null;
 }
 
-// Resolve protocol-relative or relative URLs against bn.wikipedia.org
 function absolutize(src: string): string {
   if (!src) return src;
   if (src.startsWith('//')) return 'https:' + src;
@@ -225,34 +198,95 @@ function absolutize(src: string): string {
   return src;
 }
 
-// Build full HTML mirror of the article body — preserves infobox, sections, images, tables.
-function extractFullArticleHtml(html: string): string {
-  // Grab the parser-output div which holds the article content.
-  const parserMatch = html.match(/<div[^>]*class="[^"]*mw-parser-output[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*id="catlinks"|<div[^>]*class="printfooter"|<\/div>\s*<\/div>\s*<noscript>)/i);
-  let body = parserMatch?.[1] || '';
+/**
+ * Use Wikipedia REST API to get clean parsed HTML.
+ * Endpoint: /api/rest_v1/page/html/{title}
+ * This returns well-formed HTML directly from Wikipedia's Parsoid pipeline,
+ * avoiding all regex-based extraction issues.
+ */
+async function fetchWikiArticleHtml(wikiUrl: string): Promise<{ html: string; title: string } | null> {
+  try {
+    const u = new URL(wikiUrl);
+    const titlePath = u.pathname.replace(/^\/wiki\//, '');
+    // Decode first, then re-encode for the API path
+    let decodedTitle: string;
+    try { decodedTitle = decodeURIComponent(titlePath); } catch { decodedTitle = titlePath; }
+    const encodedTitle = encodeURIComponent(decodedTitle);
 
-  if (!body) {
-    const contentMatch = html.match(/<div[^>]*id="mw-content-text"[^>]*>([\s\S]*?)<\/div>\s*<div[^>]*id="catlinks"/i);
-    body = contentMatch?.[1] || '';
+    // Try REST API first — returns clean Parsoid HTML
+    const restUrl = `${u.origin}/api/rest_v1/page/html/${encodedTitle}`;
+    const resp = await fetch(restUrl, {
+      headers: {
+        'User-Agent': 'GalachipaBot/1.0',
+        'Accept': 'text/html; charset=utf-8',
+      },
+    });
+
+    if (resp.ok) {
+      const html = await resp.text();
+      // Extract title from the HTML
+      const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      const title = titleMatch?.[1]?.replace(/ - উইকিপিডিয়া$/, '').trim() || decodedTitle.replace(/_/g, ' ');
+      return { html, title };
+    }
+
+    // Fallback: Use action API parse endpoint for clean HTML
+    const parseUrl = `${u.origin}/w/api.php?action=parse&page=${encodedTitle}&format=json&prop=text|displaytitle|images|categories`;
+    const parseResp = await fetch(parseUrl, {
+      headers: { 'User-Agent': 'GalachipaBot/1.0', 'Accept': 'application/json' },
+    });
+
+    if (parseResp.ok) {
+      const data = await parseResp.json();
+      if (data.parse) {
+        const parsedHtml = data.parse.text?.['*'] || '';
+        const parsedTitle = (data.parse.displaytitle || data.parse.title || decodedTitle)
+          .replace(/<[^>]+>/g, '').trim();
+        return { html: parsedHtml, title: parsedTitle };
+      }
+    }
+
+    return null;
+  } catch (e) {
+    console.error('fetchWikiArticleHtml error:', (e as Error).message);
+    return null;
   }
+}
 
-  if (!body) return '';
+/**
+ * Clean the HTML from Wikipedia API:
+ * - Remove edit sections, navboxes, reference lists, ambox, metadata tables
+ * - Fix all relative URLs to absolute
+ * - Keep infobox, sections, images, tables intact
+ */
+function cleanWikiHtml(rawHtml: string): string {
+  let html = rawHtml;
 
-  // Strip edit links, navboxes, references-only blocks, scripts/styles
-  body = body
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<span[^>]*class="[^"]*mw-editsection[^"]*"[^>]*>[\s\S]*?<\/span>/gi, '')
-    .replace(/<table[^>]*class="[^"]*navbox[^"]*"[^>]*>[\s\S]*?<\/table>/gi, '')
-    .replace(/<table[^>]*class="[^"]*ambox[^"]*"[^>]*>[\s\S]*?<\/table>/gi, '')
-    .replace(/<table[^>]*class="[^"]*metadata[^"]*"[^>]*>[\s\S]*?<\/table>/gi, '')
-    .replace(/<div[^>]*class="[^"]*mw-references-wrap[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
-    .replace(/<div[^>]*class="[^"]*reflist[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
-    .replace(/<sup[^>]*class="[^"]*reference[^"]*"[^>]*>[\s\S]*?<\/sup>/gi, '');
+  // Remove script/style
+  html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
+  html = html.replace(/<style[\s\S]*?<\/style>/gi, '');
 
-  // Make image src and links absolute
-  body = body.replace(/(<img[^>]+src=")([^"]+)(")/gi, (_m, a, src, c) => `${a}${absolutize(src)}${c}`);
-  body = body.replace(/(<img[^>]+srcset=")([^"]+)(")/gi, (_m, a, srcset, c) => {
+  // Remove edit section links
+  html = html.replace(/<span[^>]*class="[^"]*mw-editsection[^"]*"[^>]*>[\s\S]*?<\/span>/gi, '');
+
+  // Remove navbox, ambox, metadata tables
+  html = html.replace(/<table[^>]*class="[^"]*navbox[^"]*"[^>]*>[\s\S]*?<\/table>/gi, '');
+  html = html.replace(/<table[^>]*class="[^"]*ambox[^"]*"[^>]*>[\s\S]*?<\/table>/gi, '');
+  html = html.replace(/<table[^>]*class="[^"]*metadata[^"]*"[^>]*>[\s\S]*?<\/table>/gi, '');
+  html = html.replace(/<div[^>]*class="[^"]*mw-empty-elt[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+
+  // Remove reference lists and inline references
+  html = html.replace(/<div[^>]*class="[^"]*mw-references-wrap[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+  html = html.replace(/<div[^>]*class="[^"]*reflist[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+  html = html.replace(/<ol[^>]*class="[^"]*references[^"]*"[^>]*>[\s\S]*?<\/ol>/gi, '');
+  html = html.replace(/<sup[^>]*class="[^"]*reference[^"]*"[^>]*>[\s\S]*?<\/sup>/gi, '');
+
+  // Remove [সম্পাদনা] type links
+  html = html.replace(/\[সম্পাদনা\]/g, '');
+
+  // Fix relative URLs
+  html = html.replace(/(<img[^>]+src=")([^"]+)(")/gi, (_m, a, src, c) => `${a}${absolutize(src)}${c}`);
+  html = html.replace(/(<img[^>]+srcset=")([^"]+)(")/gi, (_m, a, srcset, c) => {
     const fixed = srcset.split(',').map((part: string) => {
       const trimmed = part.trim();
       const [u, ...rest] = trimmed.split(/\s+/);
@@ -260,15 +294,18 @@ function extractFullArticleHtml(html: string): string {
     }).join(', ');
     return `${a}${fixed}${c}`;
   });
-  body = body.replace(/(<a[^>]+href=")(\/[^"]+)(")/gi, (_m, a, href, c) => `${a}${BENGALI_WIKI}${href}${c}`);
+  html = html.replace(/(<a[^>]+href=")(\/[^"]+)(")/gi, (_m, a, href, c) => `${a}${BENGALI_WIKI}${href}${c}`);
+  html = html.replace(/(<a[^>]+href=")(\.\/[^"]+)(")/gi, (_m, a, href, c) => `${a}${BENGALI_WIKI}/wiki/${href.slice(2)}${c}`);
 
-  return body.trim();
+  return html.trim();
 }
 
-function extractPersonProfile(html: string, url: string) {
-  const titleMatch = html.match(/<h1[^>]*id="firstHeading"[^>]*>([\s\S]*?)<\/h1>/i);
-  const title = titleMatch?.[1]?.replace(/<[^>]+>/g, '').trim() || 'অজানা';
+function extractPersonProfile(rawHtml: string, url: string, apiTitle?: string) {
+  const html = cleanWikiHtml(rawHtml);
 
+  const title = apiTitle || 'অজানা';
+
+  // Featured image: try infobox first, then og:image, then first large image
   let featuredImage = '';
   const infoboxMatch = html.match(/<table[^>]*class="[^"]*infobox[^"]*"[^>]*>([\s\S]*?)<\/table>/i);
   if (infoboxMatch) {
@@ -276,15 +313,17 @@ function extractPersonProfile(html: string, url: string) {
     if (imgMatch) featuredImage = absolutize(imgMatch[1]);
   }
   if (!featuredImage) {
-    const ogImg = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1];
+    const ogImg = rawHtml.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1];
     if (ogImg) featuredImage = ogImg;
   }
+  if (!featuredImage) {
+    // Grab first reasonably sized image
+    const firstImg = html.match(/<img[^>]+src="(https:\/\/upload\.wikimedia\.org[^"]+)"/i);
+    if (firstImg) featuredImage = firstImg[1];
+  }
 
-  // Full HTML mirror — preserves whole Wikipedia article verbatim
-  const htmlContent = extractFullArticleHtml(html);
-
-  // Plain-text version for excerpt + content fallback
-  const plain = htmlContent
+  // Plain text for excerpt
+  const plain = html
     .replace(/<[^>]+>/g, ' ')
     .replace(/\[\d+\]/g, '')
     .replace(/\s+/g, ' ')
@@ -293,28 +332,28 @@ function extractPersonProfile(html: string, url: string) {
 
   // Extract all images
   const images: string[] = [];
-  const imgRegex = /<img[^>]+src="([^"]+)"/gi;
+  const imgRegex = /<img[^>]+src="(https?:\/\/[^"]+)"/gi;
   let im;
-  while ((im = imgRegex.exec(htmlContent)) !== null && images.length < 30) {
-    let src = im[1];
-    if (src.startsWith('data:') || src.includes('1x1')) continue;
-    src = absolutize(src);
-    if (src.startsWith('http') && !images.includes(src)) images.push(src);
+  while ((im = imgRegex.exec(html)) !== null && images.length < 30) {
+    const src = im[1];
+    if (src.includes('1x1') || src.includes('data:') || src.includes('.svg')) continue;
+    if (!images.includes(src)) images.push(src);
   }
 
   // Categories as tags
   const tags: string[] = [];
-  const catRegex = /<a[^>]+href="\/wiki\/বিষয়শ্রেণী:[^"]*"[^>]*title="বিষয়শ্রেণী:([^"]+)"/gi;
+  const catRegex = /title="বিষয়শ্রেণী:([^"]+)"/gi;
   let cm;
-  while ((cm = catRegex.exec(html)) !== null && tags.length < 25) {
+  const srcHtml = rawHtml || html;
+  while ((cm = catRegex.exec(srcHtml)) !== null && tags.length < 25) {
     const tag = cm[1].trim();
     if (tag && !tags.includes(tag)) tags.push(tag);
   }
 
   return {
     title,
-    html_content: htmlContent,
-    content: htmlContent.slice(0, 500000), // store full HTML in content too for posts
+    html_content: html,
+    content: html.slice(0, 500000),
     excerpt,
     featured_image: featuredImage,
     images,
@@ -327,22 +366,40 @@ async function scrapePersonPage(
   url: string, categoryTag: string, serviceClient: any,
   publishCategoryId?: string, autoSync: boolean = true,
 ) {
-  // Decode URL for storage consistency
   let canonicalUrl = url;
   try { canonicalUrl = decodeURI(url); } catch { /* ignore */ }
 
-  const resp = await fetchPage(url);
-  if (!resp) return { url, success: false, error: 'Failed to fetch' };
+  // Use Wikipedia API for clean HTML instead of raw page scraping
+  const apiResult = await fetchWikiArticleHtml(url);
 
-  const html = await resp.text();
-  if (html.length < 500) return { url, success: false, error: 'Too short' };
+  if (!apiResult || apiResult.html.length < 200) {
+    // Fallback to raw page fetch
+    const resp = await fetchPage(url);
+    if (!resp) return { url, success: false, error: 'Failed to fetch' };
+    const rawHtml = await resp.text();
+    if (rawHtml.length < 500) return { url, success: false, error: 'Too short' };
 
-  const profile = extractPersonProfile(html, canonicalUrl);
-  if (!profile.html_content || profile.html_content.length < 100) {
-    return { url, success: false, error: 'No content' };
+    // Use old method with raw HTML
+    const profile = extractPersonProfile(rawHtml, canonicalUrl);
+    if (!profile.html_content || profile.html_content.length < 100) {
+      return { url, success: false, error: 'No content' };
+    }
+    return await saveProfile(profile, canonicalUrl, categoryTag, serviceClient, publishCategoryId, autoSync);
   }
 
-  // Check existing
+  const profile = extractPersonProfile(apiResult.html, canonicalUrl, apiResult.title);
+  if (!profile.html_content || profile.html_content.length < 100) {
+    return { url, success: false, error: 'No content extracted' };
+  }
+
+  return await saveProfile(profile, canonicalUrl, categoryTag, serviceClient, publishCategoryId, autoSync);
+}
+
+async function saveProfile(
+  profile: ReturnType<typeof extractPersonProfile>,
+  canonicalUrl: string, categoryTag: string, serviceClient: any,
+  publishCategoryId?: string, autoSync: boolean = true,
+) {
   const { data: existing } = await serviceClient
     .from('archived_contents')
     .select('id')
@@ -365,8 +422,6 @@ async function scrapePersonPage(
     last_synced_at: new Date().toISOString(),
   };
 
-  // Upsert via source_url unique key. Retry without auto_sync/html_content/last_synced_at
-  // if PostgREST schema cache hasn't picked them up yet.
   let { error: upsertErr } = await serviceClient
     .from('archived_contents')
     .upsert(payload, { onConflict: 'source_url' });
@@ -379,7 +434,7 @@ async function scrapePersonPage(
     upsertErr = retry.error;
   }
 
-  if (upsertErr) return { url, success: false, error: upsertErr.message };
+  if (upsertErr) return { url: canonicalUrl, success: false, error: upsertErr.message };
 
   let published = false;
   if (publishCategoryId && !existing) {
@@ -396,7 +451,6 @@ async function scrapePersonPage(
     });
     if (!postError) published = true;
   } else if (publishCategoryId && existing) {
-    // Update existing post (matched by source_url) so Wiki updates flow through
     await serviceClient.from('posts')
       .update({
         title: profile.title,

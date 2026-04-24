@@ -301,18 +301,41 @@ export default function AdminArchiveHub() {
   const handleScrapePeople = async () => {
     setIsScrapingPeople(true);
     try {
-      const body: any = { max_people: peopleMaxCount };
+      const body: any = { max_people: peopleMaxCount, auto_sync: true };
       if (peopleCategoryTag) body.category_tag = peopleCategoryTag;
       if (peopleAutoPublish && peoplePubCatId) body.publish_category_id = peoplePubCatId;
       if (peopleCustomUrls.trim()) {
-        body.urls = peopleCustomUrls.split('\n').map(u => u.trim()).filter(Boolean);
+        // Support 👉, newlines, and commas as separators between URLs
+        const parts = peopleCustomUrls
+          .split(/👉|\n|,/g)
+          .map(u => u.trim())
+          .filter(u => u.startsWith('http'));
+        if (parts.length) body.urls = parts;
       }
       const { data, error } = await supabase.functions.invoke("scrape-wiki-people", { body });
       if (error) throw error;
-      toast.success(`${data?.saved ?? 0}টি প্রোফাইল সেভ, ${data?.published ?? 0}টি পোস্ট পাবলিশ হয়েছে`);
+      toast.success(
+        `${data?.saved ?? 0}টি সেভ • ${data?.updated ?? 0}টি আপডেট • ${data?.published ?? 0}টি পোস্ট পাবলিশ`
+      );
       qc.invalidateQueries({ queryKey: ["archive-contents"] });
     } catch (e: any) {
       toast.error(e.message || "পিপল স্ক্র্যাপিং ব্যর্থ");
+    } finally {
+      setIsScrapingPeople(false);
+    }
+  };
+
+  const handleSyncWikiPeople = async () => {
+    setIsScrapingPeople(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("scrape-wiki-people", {
+        body: { mode: 'sync' },
+      });
+      if (error) throw error;
+      toast.success(`উইকি সিঙ্ক সম্পন্ন: ${data?.updated ?? 0}টি প্রোফাইল আপডেট হয়েছে`);
+      qc.invalidateQueries({ queryKey: ["archive-contents"] });
+    } catch (e: any) {
+      toast.error(e.message || "সিঙ্ক ব্যর্থ");
     } finally {
       setIsScrapingPeople(false);
     }

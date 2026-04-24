@@ -558,11 +558,19 @@ export default function AdminArchiveHub() {
                 </select>
               )}
             </div>
-            <button onClick={handleScrapePeople} disabled={isScrapingPeople}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
-              {isScrapingPeople ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
-              {isScrapingPeople ? "স্ক্র্যাপিং চলছে..." : "পিপল স্ক্র্যাপ করুন"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={handleScrapePeople} disabled={isScrapingPeople}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                {isScrapingPeople ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+                {isScrapingPeople ? "স্ক্র্যাপিং চলছে..." : "পিপল স্ক্র্যাপ করুন"}
+              </button>
+              <button onClick={handleSyncWikiPeople} disabled={isScrapingPeople}
+                title="যেসব উইকি প্রোফাইলে অটো-সিঙ্ক চালু আছে সেগুলো এখনই আপডেট করুন"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input bg-background text-sm font-medium disabled:opacity-50">
+                <RefreshCw className={`h-4 w-4 ${isScrapingPeople ? 'animate-spin' : ''}`} />
+                সব উইকি সিঙ্ক করুন
+              </button>
+            </div>
           </div>
         </div>
       )}

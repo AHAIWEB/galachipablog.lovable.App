@@ -301,18 +301,41 @@ export default function AdminArchiveHub() {
   const handleScrapePeople = async () => {
     setIsScrapingPeople(true);
     try {
-      const body: any = { max_people: peopleMaxCount };
+      const body: any = { max_people: peopleMaxCount, auto_sync: true };
       if (peopleCategoryTag) body.category_tag = peopleCategoryTag;
       if (peopleAutoPublish && peoplePubCatId) body.publish_category_id = peoplePubCatId;
       if (peopleCustomUrls.trim()) {
-        body.urls = peopleCustomUrls.split('\n').map(u => u.trim()).filter(Boolean);
+        // Support 👉, newlines, and commas as separators between URLs
+        const parts = peopleCustomUrls
+          .split(/👉|\n|,/g)
+          .map(u => u.trim())
+          .filter(u => u.startsWith('http'));
+        if (parts.length) body.urls = parts;
       }
       const { data, error } = await supabase.functions.invoke("scrape-wiki-people", { body });
       if (error) throw error;
-      toast.success(`${data?.saved ?? 0}টি প্রোফাইল সেভ, ${data?.published ?? 0}টি পোস্ট পাবলিশ হয়েছে`);
+      toast.success(
+        `${data?.saved ?? 0}টি সেভ • ${data?.updated ?? 0}টি আপডেট • ${data?.published ?? 0}টি পোস্ট পাবলিশ`
+      );
       qc.invalidateQueries({ queryKey: ["archive-contents"] });
     } catch (e: any) {
       toast.error(e.message || "পিপল স্ক্র্যাপিং ব্যর্থ");
+    } finally {
+      setIsScrapingPeople(false);
+    }
+  };
+
+  const handleSyncWikiPeople = async () => {
+    setIsScrapingPeople(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("scrape-wiki-people", {
+        body: { mode: 'sync' },
+      });
+      if (error) throw error;
+      toast.success(`উইকি সিঙ্ক সম্পন্ন: ${data?.updated ?? 0}টি প্রোফাইল আপডেট হয়েছে`);
+      qc.invalidateQueries({ queryKey: ["archive-contents"] });
+    } catch (e: any) {
+      toast.error(e.message || "সিঙ্ক ব্যর্থ");
     } finally {
       setIsScrapingPeople(false);
     }
@@ -507,10 +530,15 @@ export default function AdminArchiveHub() {
               </div>
             </div>
             <div className="mb-3">
-              <label className="text-xs text-muted-foreground">কাস্টম উইকিপিডিয়া URL (ঐচ্ছিক, প্রতি লাইনে একটি)</label>
-              <textarea value={peopleCustomUrls} onChange={e => setPeopleCustomUrls(e.target.value)} rows={3}
-                placeholder="https://bn.wikipedia.org/wiki/রবীন্দ্রনাথ_ঠাকুর"
+              <label className="text-xs text-muted-foreground">
+                কাস্টম উইকিপিডিয়া URL (একাধিক হলে নতুন লাইন, কমা, অথবা 👉 দিয়ে আলাদা করুন)
+              </label>
+              <textarea value={peopleCustomUrls} onChange={e => setPeopleCustomUrls(e.target.value)} rows={4}
+                placeholder={"https://bn.wikipedia.org/wiki/আব্রাহাম_লিংকন👉https://bn.wikipedia.org/wiki/যোসেফ_স্ট্যালিন👉https://bn.wikipedia.org/wiki/বেনিতো_হুয়ারেস"}
                 className="w-full px-2 py-1.5 rounded border border-input bg-background text-sm resize-y" />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                হুবহু উইকিপিডিয়া পেজের সম্পূর্ণ HTML (ইনফোবক্স, ছবি, সেকশন সহ) সেভ হবে। স্বয়ংক্রিয় সিঙ্ক চালু থাকবে — উইকিপিডিয়া আপডেট হলে এখানেও আপডেট হবে।
+              </p>
             </div>
             <div className="flex gap-2 items-center flex-wrap mb-3">
               <label className="flex items-center gap-1.5 text-xs">
@@ -530,11 +558,19 @@ export default function AdminArchiveHub() {
                 </select>
               )}
             </div>
-            <button onClick={handleScrapePeople} disabled={isScrapingPeople}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
-              {isScrapingPeople ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
-              {isScrapingPeople ? "স্ক্র্যাপিং চলছে..." : "পিপল স্ক্র্যাপ করুন"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={handleScrapePeople} disabled={isScrapingPeople}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                {isScrapingPeople ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+                {isScrapingPeople ? "স্ক্র্যাপিং চলছে..." : "পিপল স্ক্র্যাপ করুন"}
+              </button>
+              <button onClick={handleSyncWikiPeople} disabled={isScrapingPeople}
+                title="যেসব উইকি প্রোফাইলে অটো-সিঙ্ক চালু আছে সেগুলো এখনই আপডেট করুন"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-input bg-background text-sm font-medium disabled:opacity-50">
+                <RefreshCw className={`h-4 w-4 ${isScrapingPeople ? 'animate-spin' : ''}`} />
+                সব উইকি সিঙ্ক করুন
+              </button>
+            </div>
           </div>
         </div>
       )}

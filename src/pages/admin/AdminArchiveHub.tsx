@@ -530,10 +530,15 @@ export default function AdminArchiveHub() {
               </div>
             </div>
             <div className="mb-3">
-              <label className="text-xs text-muted-foreground">কাস্টম উইকিপিডিয়া URL (ঐচ্ছিক, প্রতি লাইনে একটি)</label>
-              <textarea value={peopleCustomUrls} onChange={e => setPeopleCustomUrls(e.target.value)} rows={3}
-                placeholder="https://bn.wikipedia.org/wiki/রবীন্দ্রনাথ_ঠাকুর"
+              <label className="text-xs text-muted-foreground">
+                কাস্টম উইকিপিডিয়া URL (একাধিক হলে নতুন লাইন, কমা, অথবা 👉 দিয়ে আলাদা করুন)
+              </label>
+              <textarea value={peopleCustomUrls} onChange={e => setPeopleCustomUrls(e.target.value)} rows={4}
+                placeholder={"https://bn.wikipedia.org/wiki/আব্রাহাম_লিংকন👉https://bn.wikipedia.org/wiki/যোসেফ_স্ট্যালিন👉https://bn.wikipedia.org/wiki/বেনিতো_হুয়ারেস"}
                 className="w-full px-2 py-1.5 rounded border border-input bg-background text-sm resize-y" />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                হুবহু উইকিপিডিয়া পেজের সম্পূর্ণ HTML (ইনফোবক্স, ছবি, সেকশন সহ) সেভ হবে। স্বয়ংক্রিয় সিঙ্ক চালু থাকবে — উইকিপিডিয়া আপডেট হলে এখানেও আপডেট হবে।
+              </p>
             </div>
             <div className="flex gap-2 items-center flex-wrap mb-3">
               <label className="flex items-center gap-1.5 text-xs">

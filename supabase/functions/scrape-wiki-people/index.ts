@@ -138,9 +138,19 @@ Deno.serve(async (req) => {
 });
 
 async function fetchPage(url: string): Promise<Response | null> {
+  // Properly encode non-ASCII paths (Bengali Wikipedia URLs)
+  let encoded = url;
+  try {
+    const u = new URL(url);
+    u.pathname = u.pathname.split('/').map(seg => {
+      try { return encodeURIComponent(decodeURIComponent(seg)); } catch { return encodeURIComponent(seg); }
+    }).join('/');
+    encoded = u.toString();
+  } catch { /* fallback to original */ }
+
   for (let i = 0; i < 3; i++) {
     try {
-      const resp = await fetch(url, {
+      const resp = await fetch(encoded, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'text/html,application/xhtml+xml',

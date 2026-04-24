@@ -144,16 +144,18 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchPage(url: string): Promise<Response | null> {
-  // Properly encode non-ASCII paths (Bengali Wikipedia URLs)
-  let encoded = url;
+function encodeWikiUrl(url: string): string {
   try {
     const u = new URL(url);
     u.pathname = u.pathname.split('/').map(seg => {
       try { return encodeURIComponent(decodeURIComponent(seg)); } catch { return encodeURIComponent(seg); }
     }).join('/');
-    encoded = u.toString();
-  } catch { /* fallback to original */ }
+    return u.toString();
+  } catch { return url; }
+}
+
+async function fetchPage(url: string): Promise<Response | null> {
+  const encoded = encodeWikiUrl(url);
 
   for (let i = 0; i < 3; i++) {
     try {
@@ -167,6 +169,24 @@ async function fetchPage(url: string): Promise<Response | null> {
       });
       if (resp.ok) return resp;
       console.log(`fetch ${encoded} -> status ${resp.status}`);
+
+      // 404 → try resolving the title via Wikipedia opensearch (handles renames/typos)
+      if (resp.status === 404) {
+        const resolved = await resolveWikiTitle(url);
+        if (resolved && resolved !== url) {
+          console.log(`Resolved 404 → ${resolved}`);
+          const r2 = await fetch(encodeWikiUrl(resolved), {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 GalachipaBot/1.0',
+              'Accept': 'text/html,application/xhtml+xml',
+            },
+            redirect: 'follow',
+          });
+          if (r2.ok) return r2;
+        }
+        return null;
+      }
+
       if (resp.status >= 500) { await new Promise(r => setTimeout(r, 1500 * (i + 1))); continue; }
       return null;
     } catch (e) {
@@ -174,6 +194,26 @@ async function fetchPage(url: string): Promise<Response | null> {
       if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1)));
     }
   }
+  return null;
+}
+
+// Use Wikipedia OpenSearch API to find the correct title when the supplied URL 404s.
+async function resolveWikiTitle(originalUrl: string): Promise<string | null> {
+  try {
+    const u = new URL(originalUrl);
+    const rawTitle = decodeURIComponent(u.pathname.replace(/^\/wiki\//, '')).replace(/_/g, ' ');
+    if (!rawTitle) return null;
+    const apiUrl = `${u.origin}/w/api.php?action=opensearch&format=json&limit=1&search=${encodeURIComponent(rawTitle)}`;
+    const resp = await fetch(apiUrl, {
+      headers: { 'User-Agent': 'GalachipaBot/1.0', 'Accept': 'application/json' },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    // Format: [query, [titles], [descriptions], [urls]]
+    if (Array.isArray(data) && Array.isArray(data[3]) && data[3][0]) {
+      return data[3][0];
+    }
+  } catch { /* ignore */ }
   return null;
 }
 

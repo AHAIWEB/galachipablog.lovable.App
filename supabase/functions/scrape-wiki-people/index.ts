@@ -29,7 +29,8 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    const isCron = req.headers.get('x-cron-secret') === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const isCron = authHeader === `Bearer ${serviceKey}`;
 
     if (!isCron) {
       if (!authHeader?.startsWith('Bearer ')) {

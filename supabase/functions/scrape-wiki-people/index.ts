@@ -159,16 +159,19 @@ async function fetchPage(url: string): Promise<Response | null> {
     try {
       const resp = await fetch(encoded, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 GalachipaBot/1.0',
           'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'bn,en;q=0.9',
         },
+        redirect: 'follow',
       });
       if (resp.ok) return resp;
-      if (resp.status >= 500) { await new Promise(r => setTimeout(r, 1000 * (i + 1))); continue; }
+      console.log(`fetch ${encoded} -> status ${resp.status}`);
+      if (resp.status >= 500) { await new Promise(r => setTimeout(r, 1500 * (i + 1))); continue; }
       return null;
-    } catch {
-      if (i < 2) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    } catch (e) {
+      console.log(`fetch ${encoded} threw:`, (e as Error).message);
+      if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1)));
     }
   }
   return null;

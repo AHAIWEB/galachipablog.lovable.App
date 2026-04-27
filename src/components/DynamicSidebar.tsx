@@ -372,6 +372,19 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
     photo_gallery: "📷", website_links: "🔗", business_cards: "🗂",
     ads: "📢", custom_html: "📝", this_day: "📅", category_posts: "📂",
   };
+  const toneMap: Record<string, string> = {
+    latest_posts: "widget-tone-default",
+    news: "widget-tone-news",
+    blog: "widget-tone-blog",
+    directory: "widget-tone-dir",
+    category_posts: "widget-tone-dir",
+    photo_gallery: "widget-tone-rose",
+    website_links: "widget-tone-teal",
+    business_cards: "widget-tone-amber",
+    ads: "widget-tone-amber",
+    this_day: "widget-tone-rose",
+    custom_html: "widget-tone-default",
+  };
 
   const renderContent = () => {
     switch (widget.widget_type) {
@@ -391,9 +404,13 @@ function WidgetRenderer({ widget }: { widget: Widget }) {
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-      <div className="px-3 py-2.5 bg-accent text-accent-foreground border-b border-border">
-        <h3 className="font-heading font-bold text-sm">{emojiMap[widget.widget_type] || "📌"} {widget.title}</h3>
+    <div className={`widget-card ${toneMap[widget.widget_type] || "widget-tone-default"}`}>
+      <div className="widget-header">
+        <span className="widget-icon">{emojiMap[widget.widget_type] || "📌"}</span>
+        <div className="flex-1 min-w-0">
+          <h3 className="widget-title truncate">{widget.title}</h3>
+          <div className="widget-title-bar" />
+        </div>
       </div>
       {renderContent()}
     </div>

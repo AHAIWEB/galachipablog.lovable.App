@@ -38,24 +38,34 @@ export default function LeftSidebar() {
   });
 
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-      <div className="flex border-b border-border">
+    <div className="widget-card widget-tone-default">
+      <div className="widget-header">
+        <span className="widget-icon">📌</span>
+        <div className="flex-1 min-w-0">
+          <h3 className="widget-title">পোস্ট সমূহ</h3>
+          <div className="widget-title-bar" />
+        </div>
+      </div>
+      <div className="flex border-b border-border bg-muted/30">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2.5 text-sm font-heading font-semibold transition-all duration-200 relative ${
+            className={`flex-1 py-2 text-xs font-heading font-semibold transition-all duration-200 relative ${
               activeTab === tab.id
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? "text-primary"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab.label}
+            {activeTab === tab.id && (
+              <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-t-full" />
+            )}
           </button>
         ))}
       </div>
 
-      <div className="divide-y divide-border stagger-fade">
+      <div className="divide-y divide-border/60 stagger-fade">
         {posts.length === 0 ? (
           <p className="p-3 text-sm text-muted-foreground">কোনো পোস্ট নেই</p>
         ) : (
@@ -63,19 +73,17 @@ export default function LeftSidebar() {
             const catType = (post as any).categories?.type;
             const catName = (post as any).categories?.name;
             return (
-              <Link key={post.id} to={`/post/${post.slug}`} className="block p-3 hover:bg-muted/50 transition-all duration-200 group">
-                <div className="flex gap-2 items-start">
-                  <span className="text-xs font-bold text-muted-foreground/50 mt-0.5 shrink-0 w-5">{String(i + 1).padStart(2, '0')}</span>
-                  <div>
-                    <h4 className="text-sm font-heading font-medium leading-snug group-hover:text-primary transition-colors">
-                      {post.title}
-                    </h4>
-                    {catName && (
-                      <span className={`${catType === "news" ? "tag-news" : catType === "blog" ? "tag-blog" : "tag-directory"} mt-1.5 inline-block`}>
-                        {catName}
-                      </span>
-                    )}
-                  </div>
+              <Link key={post.id} to={`/post/${post.slug}`} className="widget-row group">
+                <span className="widget-index">{String(i + 1).padStart(2, '0')}</span>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-heading font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                    {post.title}
+                  </h4>
+                  {catName && (
+                    <span className={`${catType === "news" ? "tag-news" : catType === "blog" ? "tag-blog" : "tag-directory"} mt-1.5 inline-block`}>
+                      {catName}
+                    </span>
+                  )}
                 </div>
               </Link>
             );

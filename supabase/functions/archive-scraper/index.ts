@@ -39,60 +39,65 @@ Deno.serve(async (req) => {
     }
 
     const serviceClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    const maxLimit = max_pages || 500;
-    const results: any[] = [];
+    const maxLimit = Math.min(max_pages || 500, 500);
 
-    // Discover internal links from seed URLs
-    let allUrls = [...urls];
-    if (discover_links) {
-      const discovered = new Set<string>(urls);
-      for (const seedUrl of urls.slice(0, 10)) {
-        try {
-          const resp = await fetchWithRetry(seedUrl);
-          if (!resp) continue;
-          const html = await resp.text();
-          const baseUrl = new URL(seedUrl);
-
-          // Extract all href links
-          const linkRegex = /<a[^>]+href=["']([^"'#?]*(?:\?[^"'#]*)?)['"]/gi;
-          let m;
-          while ((m = linkRegex.exec(html)) !== null && discovered.size < maxLimit) {
+    // Run scraping in background to avoid CPU/wall-time limits on the request
+    const backgroundJob = (async () => {
+      try {
+        let allUrls = [...urls];
+        if (discover_links) {
+          const discovered = new Set<string>(urls);
+          for (const seedUrl of urls.slice(0, 10)) {
             try {
-              const href = m[1].trim();
-              if (!href || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
-              const absUrl = new URL(href, seedUrl).href.split('#')[0];
-              if (absUrl.startsWith(baseUrl.origin) && !discovered.has(absUrl) && isContentUrl(absUrl)) {
-                discovered.add(absUrl);
+              const resp = await fetchWithRetry(seedUrl);
+              if (!resp) continue;
+              const html = await resp.text();
+              const baseUrl = new URL(seedUrl);
+              const linkRegex = /<a[^>]+href=["']([^"'#?]*(?:\?[^"'#]*)?)['"]/gi;
+              let m;
+              while ((m = linkRegex.exec(html)) !== null && discovered.size < maxLimit) {
+                try {
+                  const href = m[1].trim();
+                  if (!href || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
+                  const absUrl = new URL(href, seedUrl).href.split('#')[0];
+                  if (absUrl.startsWith(baseUrl.origin) && !discovered.has(absUrl) && isContentUrl(absUrl)) {
+                    discovered.add(absUrl);
+                  }
+                } catch { /* skip */ }
               }
             } catch { /* skip */ }
           }
-        } catch { /* skip */ }
-      }
-      allUrls = Array.from(discovered);
-    }
-
-    // Process URLs in concurrent batches
-    const toProcess = allUrls.slice(0, maxLimit);
-    const batchSize = 8;
-
-    for (let i = 0; i < toProcess.length; i += batchSize) {
-      const batch = toProcess.slice(i, i + batchSize);
-      const batchResults = await Promise.allSettled(
-        batch.map(url => scrapeAndSave(url, category, source_name, schedule_id, serviceClient))
-      );
-
-      for (let j = 0; j < batchResults.length; j++) {
-        const r = batchResults[j];
-        if (r.status === 'fulfilled') {
-          results.push(r.value);
-        } else {
-          results.push({ url: batch[j], success: false, error: r.reason?.message || 'Unknown' });
+          allUrls = Array.from(discovered);
         }
+
+        const toProcess = allUrls.slice(0, maxLimit);
+        const batchSize = 4;
+        let successCount = 0;
+        for (let i = 0; i < toProcess.length; i += batchSize) {
+          const batch = toProcess.slice(i, i + batchSize);
+          const batchResults = await Promise.allSettled(
+            batch.map(url => scrapeAndSave(url, category, source_name, schedule_id, serviceClient))
+          );
+          for (const r of batchResults) {
+            if (r.status === 'fulfilled' && r.value?.success) successCount++;
+          }
+          // Yield between batches
+          await new Promise(r => setTimeout(r, 50));
+        }
+        console.log(`Archive scraper finished: ${successCount}/${toProcess.length} succeeded`);
+      } catch (e) {
+        console.error('Background scrape error:', e);
       }
+    })();
+
+    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(backgroundJob);
     }
 
     return new Response(
-      JSON.stringify({ success: true, total: results.length, successCount: results.filter(r => r.success).length, results: results.slice(0, 100) }),
+      JSON.stringify({ success: true, started: true, message: 'Scraping started in background. Check archived_contents table for results.', maxPages: maxLimit }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

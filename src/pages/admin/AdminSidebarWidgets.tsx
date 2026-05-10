@@ -96,6 +96,22 @@ export default function AdminSidebarWidgets() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sidebar-widgets"] }),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      // Assign sequential sort_order starting at 10, 20, 30...
+      await Promise.all(
+        orderedIds.map((id, i) =>
+          supabase.from("sidebar_widgets").update({ sort_order: (i + 1) * 10 }).eq("id", id)
+        )
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sidebar-widgets"] });
+      toast.success("ক্রম আপডেট হয়েছে");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("sidebar_widgets").delete().eq("id", id);
@@ -103,6 +119,21 @@ export default function AdminSidebarWidgets() {
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["sidebar-widgets"] }); toast.success("মুছে ফেলা হয়েছে"); },
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = filtered.findIndex(w => w.id === active.id);
+    const newIndex = filtered.findIndex(w => w.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const newOrder = arrayMove(filtered, oldIndex, newIndex);
+    reorderMutation.mutate(newOrder.map(w => w.id));
+  };
 
   const copyId = (id: string) => {
     navigator.clipboard.writeText(id);

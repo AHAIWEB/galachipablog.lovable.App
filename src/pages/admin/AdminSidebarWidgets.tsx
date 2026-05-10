@@ -3,6 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Trash2, GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, Copy } from "lucide-react";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const WIDGET_TYPES = [
   { value: "latest_posts", label: "সর্বশেষ পোস্ট" },
@@ -88,6 +96,22 @@ export default function AdminSidebarWidgets() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sidebar-widgets"] }),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      // Assign sequential sort_order starting at 10, 20, 30...
+      await Promise.all(
+        orderedIds.map((id, i) =>
+          supabase.from("sidebar_widgets").update({ sort_order: (i + 1) * 10 }).eq("id", id)
+        )
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sidebar-widgets"] });
+      toast.success("ক্রম আপডেট হয়েছে");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("sidebar_widgets").delete().eq("id", id);
@@ -95,6 +119,21 @@ export default function AdminSidebarWidgets() {
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["sidebar-widgets"] }); toast.success("মুছে ফেলা হয়েছে"); },
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = filtered.findIndex(w => w.id === active.id);
+    const newIndex = filtered.findIndex(w => w.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const newOrder = arrayMove(filtered, oldIndex, newIndex);
+    reorderMutation.mutate(newOrder.map(w => w.id));
+  };
 
   const copyId = (id: string) => {
     navigator.clipboard.writeText(id);
@@ -196,39 +235,86 @@ export default function AdminSidebarWidgets() {
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">লোড হচ্ছে...</p>
         ) : filtered.length > 0 ? (
-          <div className="divide-y divide-border">
-            {filtered.map((w, idx) => (
-              <div key={w.id} className={`flex items-center gap-3 px-4 py-3 ${!w.is_active ? "opacity-50" : ""}`}>
-                <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{w.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {WIDGET_TYPES.find(t => t.value === w.widget_type)?.label || w.widget_type}
-                    {(w.config as any)?.category_id && (
-                      <span className="ml-1 text-primary">
-                        • {categories.find(c => c.id === (w.config as any).category_id)?.name || 'ক্যাটাগরি'}
-                      </span>
-                    )}
-                  </p>
+          <>
+            <p className="px-4 py-2 text-[11px] text-muted-foreground bg-muted/40 border-b border-border">
+              💡 গ্রিপ আইকন <GripVertical className="inline h-3 w-3" /> ধরে টেনে নিয়ে উইজেটের ক্রম পরিবর্তন করুন
+            </p>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={filtered.map(w => w.id)} strategy={verticalListSortingStrategy}>
+                <div className="divide-y divide-border">
+                  {filtered.map((w, idx) => (
+                    <SortableRow
+                      key={w.id}
+                      widget={w}
+                      idx={idx}
+                      total={filtered.length}
+                      categoryName={categories.find(c => c.id === (w.config as any)?.category_id)?.name}
+                      typeLabel={WIDGET_TYPES.find(t => t.value === w.widget_type)?.label || w.widget_type}
+                      onMoveUp={() => moveWidget.mutate({ id: w.id, direction: "up" })}
+                      onMoveDown={() => moveWidget.mutate({ id: w.id, direction: "down" })}
+                      onToggle={() => toggleActive.mutate({ id: w.id, is_active: !w.is_active })}
+                      onDelete={() => { if (confirm("নিশ্চিত?")) deleteMutation.mutate(w.id); }}
+                    />
+                  ))}
                 </div>
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <button onClick={() => moveWidget.mutate({ id: w.id, direction: "up" })} disabled={idx === 0}
-                    className="p-1 hover:bg-muted rounded disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => moveWidget.mutate({ id: w.id, direction: "down" })} disabled={idx === filtered.length - 1}
-                    className="p-1 hover:bg-muted rounded disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => toggleActive.mutate({ id: w.id, is_active: !w.is_active })}
-                    className="p-1.5 hover:bg-muted rounded">
-                    {w.is_active ? <Eye className="h-3.5 w-3.5 text-green-500" /> : <EyeOff className="h-3.5 w-3.5" />}
-                  </button>
-                  <button onClick={() => { if (confirm("নিশ্চিত?")) deleteMutation.mutate(w.id); }}
-                    className="p-1.5 hover:bg-destructive/10 rounded text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-                </div>
-              </div>
-            ))}
-          </div>
+              </SortableContext>
+            </DndContext>
+          </>
         ) : (
           <p className="p-4 text-sm text-muted-foreground">কোনো উইজেট নেই</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+type SortableRowProps = {
+  widget: any;
+  idx: number;
+  total: number;
+  typeLabel: string;
+  categoryName?: string;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+};
+
+function SortableRow({ widget: w, idx, total, typeLabel, categoryName, onMoveUp, onMoveDown, onToggle, onDelete }: SortableRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: w.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : "auto",
+    opacity: isDragging ? 0.6 : 1,
+  } as React.CSSProperties;
+
+  return (
+    <div ref={setNodeRef} style={style}
+      className={`flex items-center gap-3 px-4 py-3 bg-card ${!w.is_active ? "opacity-50" : ""} ${isDragging ? "shadow-lg" : ""}`}>
+      <button {...attributes} {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 -m-1 hover:bg-muted rounded touch-none"
+        title="টেনে নিয়ে যান">
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{w.title}</p>
+        <p className="text-xs text-muted-foreground">
+          {typeLabel}
+          {categoryName && <span className="ml-1 text-primary">• {categoryName}</span>}
+        </p>
+      </div>
+      <div className="flex items-center gap-0.5 shrink-0">
+        <button onClick={onMoveUp} disabled={idx === 0}
+          className="p-1 hover:bg-muted rounded disabled:opacity-30"><ArrowUp className="h-3.5 w-3.5" /></button>
+        <button onClick={onMoveDown} disabled={idx === total - 1}
+          className="p-1 hover:bg-muted rounded disabled:opacity-30"><ArrowDown className="h-3.5 w-3.5" /></button>
+        <button onClick={onToggle} className="p-1.5 hover:bg-muted rounded">
+          {w.is_active ? <Eye className="h-3.5 w-3.5 text-green-500" /> : <EyeOff className="h-3.5 w-3.5" />}
+        </button>
+        <button onClick={onDelete} className="p-1.5 hover:bg-destructive/10 rounded text-destructive">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
     </div>
   );

@@ -504,6 +504,42 @@ export default function AdminArchiveHub() {
             </div>
           </div>
 
+          {/* World Days scraper */}
+          <div className="bg-card rounded-xl border border-border p-4">
+            <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2">
+              <Globe className="h-4 w-4 text-primary" /> বিশ্ব দিবস তালিকা স্ক্র্যাপার
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              বাংলা উইকিপিডিয়ার <span className="font-mono">বিশ্ব দিবস তালিকা</span> পেজ থেকে সকল দিবসের লিংক ডিসকভার করে প্রতিটি দিবসের সম্পূর্ণ তথ্য আর্কাইভে সেভ করবে।
+            </p>
+            <button
+              onClick={async () => {
+                setIsScraping(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("archive-scraper", {
+                    body: {
+                      urls: ["https://bn.wikipedia.org/wiki/বিশ্ব_দিবস_তালিকা"],
+                      category: "বিশ্ব দিবস",
+                      discover_links: true,
+                      max_pages: 500,
+                    },
+                  });
+                  if (error) throw error;
+                  toast.success(`${data?.successCount ?? 0} টি দিবস আর্কাইভ হয়েছে`);
+                  qc.invalidateQueries({ queryKey: ["archive-contents"] });
+                } catch (e: any) {
+                  toast.error(e.message || "স্ক্র্যাপ ব্যর্থ");
+                } finally {
+                  setIsScraping(false);
+                }
+              }}
+              disabled={isScraping}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+              {isScraping ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+              {isScraping ? "স্ক্র্যাপিং..." : "বিশ্ব দিবস স্ক্র্যাপ করুন"}
+            </button>
+          </div>
+
           {/* Wiki People scraper */}
           <div className="bg-card rounded-xl border border-border p-4">
             <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2">

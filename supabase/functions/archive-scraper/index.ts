@@ -116,8 +116,25 @@ function isContentUrl(url: string): boolean {
   return !skip.some(ext => lower.includes(ext));
 }
 
-async function fetchWithRetry(url: string, retries = 2): Promise<Response | null> {
+// Per-host throttle: minimum gap between outbound requests to same hostname
+const HOST_MIN_GAP_MS = 800;
+const lastHostHit = new Map<string, number>();
+
+async function throttleHost(url: string) {
+  let host = '';
+  try { host = new URL(url).hostname; } catch { return; }
+  const now = Date.now();
+  const last = lastHostHit.get(host) || 0;
+  const wait = last + HOST_MIN_GAP_MS - now;
+  if (wait > 0) {
+    await new Promise(r => setTimeout(r, wait + Math.floor(Math.random() * 200)));
+  }
+  lastHostHit.set(host, Date.now());
+}
+
+async function fetchWithRetry(url: string, retries = 3): Promise<Response | null> {
   for (let i = 0; i <= retries; i++) {
+    await throttleHost(url);
     try {
       const resp = await fetch(url, {
         headers: {
@@ -128,14 +145,21 @@ async function fetchWithRetry(url: string, retries = 2): Promise<Response | null
         redirect: 'follow',
       });
       if (resp.ok) return resp;
-      if (resp.status >= 500 && i < retries) {
-        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+
+      // Honor Retry-After and exponential backoff for 429/5xx
+      if ((resp.status === 429 || resp.status >= 500) && i < retries) {
+        const retryAfter = parseInt(resp.headers.get('retry-after') || '0', 10);
+        const base = retryAfter > 0 ? retryAfter * 1000 : Math.min(30000, 1000 * Math.pow(2, i));
+        const jitter = Math.floor(Math.random() * 500);
+        try { await resp.body?.cancel(); } catch { /* noop */ }
+        await new Promise(r => setTimeout(r, base + jitter));
         continue;
       }
       return null;
     } catch {
       if (i < retries) {
-        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+        const backoff = Math.min(30000, 1000 * Math.pow(2, i)) + Math.floor(Math.random() * 500);
+        await new Promise(r => setTimeout(r, backoff));
       }
     }
   }

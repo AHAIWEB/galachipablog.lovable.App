@@ -162,7 +162,8 @@ function MegaDropdown({ type, onClose, onMouseEnter, onMouseLeave }: { type: "ne
   return (
     <div
       className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up"
-      onMouseLeave={onClose}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="container mx-auto p-4 max-h-[70vh] overflow-hidden flex gap-4">
         {/* Letter index */}

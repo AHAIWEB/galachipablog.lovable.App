@@ -184,7 +184,30 @@ export default function AdminAds() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">ইমেজ URL</label>
-                  <input value={form.image_url} onChange={e => setForm(p => ({ ...p, image_url: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                  <div className="flex gap-2 mt-1">
+                    <input value={form.image_url} onChange={e => setForm(p => ({ ...p, image_url: e.target.value }))} placeholder="https://... অথবা আপলোড করুন" className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                    <label className="px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium cursor-pointer whitespace-nowrap hover:opacity-90">
+                      📤 আপলোড
+                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const ext = file.name.split('.').pop();
+                          const path = `ads/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+                          const { error: upErr } = await supabase.storage.from("post-images").upload(path, file, { upsert: false });
+                          if (upErr) throw upErr;
+                          const { data: pub } = supabase.storage.from("post-images").getPublicUrl(path);
+                          setForm(p => ({ ...p, image_url: pub.publicUrl }));
+                          toast.success("ইমেজ আপলোড সম্পন্ন");
+                        } catch (err: any) {
+                          toast.error(err.message || "আপলোড ব্যর্থ");
+                        } finally {
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }} />
+                    </label>
+                  </div>
+                  {form.image_url && <img src={form.image_url} alt="preview" className="mt-2 max-h-24 rounded border border-border" />}
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">স্ট্যাটাস</label>

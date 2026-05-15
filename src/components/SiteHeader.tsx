@@ -115,7 +115,7 @@ function WebLinksDropdown({ onClose }: { onClose: () => void }) {
   );
 }
 
-function MegaDropdown({ type, onClose }: { type: "news" | "blog" | "directory"; onClose: () => void }) {
+function MegaDropdown({ type, onClose, onMouseEnter, onMouseLeave }: { type: "news" | "blog" | "directory"; onClose: () => void; onMouseEnter: () => void; onMouseLeave: () => void }) {
   const [search, setSearch] = useState("");
   const [hoveredCatId, setHoveredCatId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);

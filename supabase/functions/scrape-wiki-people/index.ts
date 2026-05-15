@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         .like('source_url', `${BENGALI_WIKI}/wiki/%`)
         .limit(200);
       personUrls = (existing || []).map((r: any) => r.source_url);
-    } else if (urls && Array.isArray(urls) && urls.length > 0) {
+    } else if (personUrls.length === 0 && urls && Array.isArray(urls) && urls.length > 0) {
       const expanded: string[] = [];
       for (const u of urls) {
         if (typeof u !== 'string') continue;

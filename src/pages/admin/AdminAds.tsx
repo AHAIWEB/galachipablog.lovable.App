@@ -184,7 +184,30 @@ export default function AdminAds() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">ইমেজ URL</label>
-                  <input value={form.image_url} onChange={e => setForm(p => ({ ...p, image_url: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                  <div className="flex gap-2 mt-1">
+                    <input value={form.image_url} onChange={e => setForm(p => ({ ...p, image_url: e.target.value }))} placeholder="https://... অথবা আপলোড করুন" className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+                    <label className="px-3 py-2 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium cursor-pointer whitespace-nowrap hover:opacity-90">
+                      📤 আপলোড
+                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const ext = file.name.split('.').pop();
+                          const path = `ads/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+                          const { error: upErr } = await supabase.storage.from("post-images").upload(path, file, { upsert: false });
+                          if (upErr) throw upErr;
+                          const { data: pub } = supabase.storage.from("post-images").getPublicUrl(path);
+                          setForm(p => ({ ...p, image_url: pub.publicUrl }));
+                          toast.success("ইমেজ আপলোড সম্পন্ন");
+                        } catch (err: any) {
+                          toast.error(err.message || "আপলোড ব্যর্থ");
+                        } finally {
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }} />
+                    </label>
+                  </div>
+                  {form.image_url && <img src={form.image_url} alt="preview" className="mt-2 max-h-24 rounded border border-border" />}
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">স্ট্যাটাস</label>
@@ -248,10 +271,21 @@ export default function AdminAds() {
                 <input type="color" value={canvasBg} onChange={e => setCanvasBg(e.target.value)} className="w-full mt-1 h-9 rounded cursor-pointer" />
               </div>
             </div>
-            <div className="flex gap-2">
-              {[{ l: "ব্যানার 728x90", w: 728, h: 90 }, { l: "বক্স 300x250", w: 300, h: 250 }, { l: "স্কোয়ার 250x250", w: 250, h: 250 }, { l: "স্কাই 160x600", w: 160, h: 600 }].map(s => (
+            <div className="flex gap-2 flex-wrap">
+              {[{ l: "ব্যানার 728x90", w: 728, h: 90 }, { l: "বক্স 300x250", w: 300, h: 250 }, { l: "স্কোয়ার 250x250", w: 250, h: 250 }, { l: "স্কাই 160x600", w: 160, h: 600 }, { l: "লিডারবোর্ড 970x250", w: 970, h: 250 }, { l: "মোবাইল 320x100", w: 320, h: 100 }].map(s => (
                 <button key={s.l} onClick={() => setCanvasSize({ w: s.w, h: s.h })} className={`text-xs px-2 py-1 rounded ${canvasSize.w === s.w && canvasSize.h === s.h ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{s.l}</button>
               ))}
+            </div>
+            <div className="flex items-end gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground">কাস্টম প্রস্থ (W)</label>
+                <input type="number" min={50} max={2000} value={canvasSize.w} onChange={e => setCanvasSize(s => ({ ...s, w: Number(e.target.value) || 0 }))} className="w-28 mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">কাস্টম উচ্চতা (H)</label>
+                <input type="number" min={50} max={2000} value={canvasSize.h} onChange={e => setCanvasSize(s => ({ ...s, h: Number(e.target.value) || 0 }))} className="w-28 mt-1 px-3 py-2 rounded-lg border border-input bg-background text-sm" />
+              </div>
+              <span className="text-xs text-muted-foreground pb-2">px</span>
             </div>
             <div className="border border-border rounded-lg overflow-auto max-h-96 bg-muted/30 p-4 flex justify-center">
               <canvas ref={canvasRef} width={canvasSize.w} height={canvasSize.h} className="border border-dashed border-border" />

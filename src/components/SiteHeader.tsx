@@ -76,7 +76,7 @@ function useLatestPosts(type: "news" | "blog" | "directory", enabled: boolean) {
   });
 }
 
-function WebLinksDropdown({ onClose }: { onClose: () => void }) {
+function WebLinksDropdown({ onClose, onMouseEnter, onMouseLeave }: { onClose: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }) {
   const { data: links = [] } = useQuery({
     queryKey: ["menu-website-links"],
     queryFn: async () => {
@@ -87,7 +87,7 @@ function WebLinksDropdown({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up" onMouseLeave={onClose}>
+    <div className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <div className="container mx-auto p-4 max-h-[70vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-heading font-bold text-sm">🌐 বাংলাদেশের পত্রিকা ও ওয়েবসাইট</h3>
@@ -115,7 +115,7 @@ function WebLinksDropdown({ onClose }: { onClose: () => void }) {
   );
 }
 
-function MegaDropdown({ type, onClose }: { type: "news" | "blog" | "directory"; onClose: () => void }) {
+function MegaDropdown({ type, onClose, onMouseEnter, onMouseLeave }: { type: "news" | "blog" | "directory"; onClose: () => void; onMouseEnter: () => void; onMouseLeave: () => void }) {
   const [search, setSearch] = useState("");
   const [hoveredCatId, setHoveredCatId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -162,7 +162,8 @@ function MegaDropdown({ type, onClose }: { type: "news" | "blog" | "directory"; 
   return (
     <div
       className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up"
-      onMouseLeave={onClose}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div className="container mx-auto p-4 max-h-[70vh] overflow-hidden flex gap-4">
         {/* Letter index */}
@@ -260,8 +261,12 @@ export default function SiteHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleMenuEnter = (type: "news" | "blog" | "directory") => {
+  const cancelClose = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  };
+
+  const handleMenuEnter = (type: "news" | "blog" | "directory") => {
+    cancelClose();
     setOpenMenu(type);
   };
 
@@ -356,8 +361,8 @@ export default function SiteHeader() {
         </div>
       </nav>
 
-      {openMenu && openMenu !== "weblinks" && <MegaDropdown type={openMenu} onClose={() => setOpenMenu(null)} />}
-      {openMenu === "weblinks" && <WebLinksDropdown onClose={() => setOpenMenu(null)} />}
+      {openMenu && openMenu !== "weblinks" && <MegaDropdown type={openMenu} onClose={() => setOpenMenu(null)} onMouseEnter={cancelClose} onMouseLeave={handleMenuLeave} />}
+      {openMenu === "weblinks" && <WebLinksDropdown onClose={() => setOpenMenu(null)} onMouseEnter={cancelClose} onMouseLeave={handleMenuLeave} />}
       {openMenu && (
         <div className="fixed inset-0 bg-foreground/20 z-40" onClick={() => setOpenMenu(null)} style={{ top: "110px" }} />
       )}

@@ -76,7 +76,7 @@ function useLatestPosts(type: "news" | "blog" | "directory", enabled: boolean) {
   });
 }
 
-function WebLinksDropdown({ onClose }: { onClose: () => void }) {
+function WebLinksDropdown({ onClose, onMouseEnter, onMouseLeave }: { onClose: () => void; onMouseEnter?: () => void; onMouseLeave?: () => void }) {
   const { data: links = [] } = useQuery({
     queryKey: ["menu-website-links"],
     queryFn: async () => {
@@ -87,7 +87,7 @@ function WebLinksDropdown({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up" onMouseLeave={onClose}>
+    <div className="absolute left-0 right-0 top-full z-50 bg-card border-b border-border shadow-xl animate-slide-up" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <div className="container mx-auto p-4 max-h-[70vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-heading font-bold text-sm">🌐 বাংলাদেশের পত্রিকা ও ওয়েবসাইট</h3>

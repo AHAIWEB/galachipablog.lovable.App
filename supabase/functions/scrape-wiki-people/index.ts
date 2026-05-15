@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     }
 
     // SYNC MODE: re-scrape all auto_sync wiki entries
-    if (mode === 'sync') {
+    if (personUrls.length === 0 && mode === 'sync') {
       const { data: existing } = await serviceClient
         .from('archived_contents')
         .select('source_url')

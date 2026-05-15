@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { urls, category_tag, max_people, publish_category_id, auto_sync, mode } = body;
+    const { urls, list_urls, category_tag, max_people, publish_category_id, auto_sync, mode, background } = body;
 
     const serviceClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const limit = max_people || 50;
@@ -59,8 +59,35 @@ Deno.serve(async (req) => {
 
     let personUrls: string[] = [];
 
+    // LIST MODE: discover person links from a Wikipedia list page
+    if (Array.isArray(list_urls) && list_urls.length > 0) {
+      const discovered = new Set<string>();
+      for (const listUrl of list_urls) {
+        if (typeof listUrl !== 'string' || !listUrl.startsWith('http')) continue;
+        try {
+          const resp = await fetchPage(listUrl);
+          if (!resp) continue;
+          const html = await resp.text();
+          // Extract all /wiki/ article links from content (skip namespaces)
+          const linkRegex = /<a[^>]+href="\/wiki\/([^":#?]+)"/gi;
+          let m;
+          while ((m = linkRegex.exec(html)) !== null) {
+            const slug = m[1];
+            if (slug.includes(':')) continue;
+            if (/^(বিষয়শ্রেণী|টেমপ্লেট|উইকিপিডিয়া|বিশেষ|সাহায্য|চিত্র|File|Help|Category|Template|Special|Wikipedia|Portal)/i.test(slug)) continue;
+            if (slug.length < 2) continue;
+            discovered.add(`${BENGALI_WIKI}/wiki/${slug}`);
+            if (discovered.size >= limit) break;
+          }
+        } catch (e) { console.log('list discover err:', (e as Error).message); }
+        if (discovered.size >= limit) break;
+      }
+      personUrls = Array.from(discovered).slice(0, limit);
+      console.log(`Discovered ${personUrls.length} person URLs from list`);
+    }
+
     // SYNC MODE: re-scrape all auto_sync wiki entries
-    if (mode === 'sync') {
+    if (personUrls.length === 0 && mode === 'sync') {
       const { data: existing } = await serviceClient
         .from('archived_contents')
         .select('source_url')
@@ -68,7 +95,7 @@ Deno.serve(async (req) => {
         .like('source_url', `${BENGALI_WIKI}/wiki/%`)
         .limit(200);
       personUrls = (existing || []).map((r: any) => r.source_url);
-    } else if (urls && Array.isArray(urls) && urls.length > 0) {
+    } else if (personUrls.length === 0 && urls && Array.isArray(urls) && urls.length > 0) {
       const expanded: string[] = [];
       for (const u of urls) {
         if (typeof u !== 'string') continue;
@@ -82,7 +109,7 @@ Deno.serve(async (req) => {
       }
       personUrls = Array.from(new Set(expanded)).slice(0, limit);
       console.log('Parsed person URLs:', personUrls);
-    } else {
+    } else if (personUrls.length === 0) {
       const categoriesToScrape = category_tag
         ? PEOPLE_CATEGORIES.filter(c => c.name === category_tag)
         : PEOPLE_CATEGORIES;
@@ -107,18 +134,32 @@ Deno.serve(async (req) => {
       personUrls = Array.from(discovered).slice(0, limit);
     }
 
-    const batchSize = 3;
-    for (let i = 0; i < personUrls.length; i += batchSize) {
-      const batch = personUrls.slice(i, i + batchSize);
-      const batchResults = await Promise.allSettled(
-        batch.map(url => scrapePersonPage(url, category_tag || 'বিশ্ববরেণ্য', serviceClient, publish_category_id, auto_sync !== false))
-      );
-      for (let j = 0; j < batchResults.length; j++) {
-        const r = batchResults[j];
-        if (r.status === 'fulfilled') results.push(r.value);
-        else results.push({ url: batch[j], success: false, error: r.reason?.message });
+    const runBatches = async () => {
+      const batchSize = 3;
+      for (let i = 0; i < personUrls.length; i += batchSize) {
+        const batch = personUrls.slice(i, i + batchSize);
+        const batchResults = await Promise.allSettled(
+          batch.map(url => scrapePersonPage(url, category_tag || 'বিশ্ববরেণ্য', serviceClient, publish_category_id, auto_sync !== false))
+        );
+        for (let j = 0; j < batchResults.length; j++) {
+          const r = batchResults[j];
+          if (r.status === 'fulfilled') results.push(r.value);
+          else results.push({ url: batch[j], success: false, error: r.reason?.message });
+        }
+        await new Promise(r => setTimeout(r, 50));
       }
+    };
+
+    if (background || personUrls.length > 10) {
+      // @ts-ignore EdgeRuntime is provided by Deno deploy
+      EdgeRuntime.waitUntil(runBatches().catch(e => console.error('bg err:', e)));
+      return new Response(
+        JSON.stringify({ success: true, started: true, total: personUrls.length, message: 'Background scraping started' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    await runBatches();
 
     const successCount = results.filter(r => r.success).length;
     return new Response(

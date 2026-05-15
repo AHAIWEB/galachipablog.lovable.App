@@ -578,6 +578,44 @@ export default function AdminArchiveHub() {
             </button>
           </div>
 
+          {/* Wikipedia People List (global) scraper */}
+          <div className="bg-card rounded-xl border border-border p-4">
+            <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" /> উইকিপিডিয়ার ব্যক্তিদের তালিকা স্ক্র্যাপার
+            </h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              বাংলা উইকিপিডিয়ার <span className="font-mono">উইকিপিডিয়ার ব্যক্তিদের তালিকা</span> পেজ থেকে সকল ব্যক্তির লিংক ডিসকভার করে প্রতিটির পূর্ণ প্রোফাইল আর্কাইভে সেভ করবে।
+            </p>
+            <button
+              onClick={async () => {
+                setIsScrapingPeople(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("scrape-wiki-people", {
+                    body: {
+                      list_urls: ["https://bn.wikipedia.org/wiki/উইকিপিডিয়ার_ব্যক্তিদের_তালিকা"],
+                      category_tag: "ব্যক্তিত্ব",
+                      max_people: 500,
+                      auto_sync: true,
+                      background: true,
+                      publish_category_id: peopleAutoPublish ? peoplePubCatId : undefined,
+                    },
+                  });
+                  if (error) throw error;
+                  toast.success(`ব্যাকগ্রাউন্ডে ${data?.total ?? 0} জনের প্রোফাইল স্ক্র্যাপিং শুরু হয়েছে`);
+                  qc.invalidateQueries({ queryKey: ["archive-contents"] });
+                } catch (e: any) {
+                  toast.error(e.message || "স্ক্র্যাপ ব্যর্থ");
+                } finally {
+                  setIsScrapingPeople(false);
+                }
+              }}
+              disabled={isScrapingPeople}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+              {isScrapingPeople ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+              {isScrapingPeople ? "শুরু হচ্ছে..." : "উইকিপিডিয়ার ব্যক্তি স্ক্র্যাপ করুন"}
+            </button>
+          </div>
+
           {/* Wiki People scraper */}
           <div className="bg-card rounded-xl border border-border p-4">
             <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2">

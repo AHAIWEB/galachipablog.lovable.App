@@ -261,8 +261,12 @@ export default function SiteHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleMenuEnter = (type: "news" | "blog" | "directory") => {
+  const cancelClose = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  };
+
+  const handleMenuEnter = (type: "news" | "blog" | "directory") => {
+    cancelClose();
     setOpenMenu(type);
   };
 

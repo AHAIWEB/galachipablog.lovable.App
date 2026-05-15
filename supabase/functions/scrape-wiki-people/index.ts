@@ -134,18 +134,32 @@ Deno.serve(async (req) => {
       personUrls = Array.from(discovered).slice(0, limit);
     }
 
-    const batchSize = 3;
-    for (let i = 0; i < personUrls.length; i += batchSize) {
-      const batch = personUrls.slice(i, i + batchSize);
-      const batchResults = await Promise.allSettled(
-        batch.map(url => scrapePersonPage(url, category_tag || 'বিশ্ববরেণ্য', serviceClient, publish_category_id, auto_sync !== false))
-      );
-      for (let j = 0; j < batchResults.length; j++) {
-        const r = batchResults[j];
-        if (r.status === 'fulfilled') results.push(r.value);
-        else results.push({ url: batch[j], success: false, error: r.reason?.message });
+    const runBatches = async () => {
+      const batchSize = 3;
+      for (let i = 0; i < personUrls.length; i += batchSize) {
+        const batch = personUrls.slice(i, i + batchSize);
+        const batchResults = await Promise.allSettled(
+          batch.map(url => scrapePersonPage(url, category_tag || 'বিশ্ববরেণ্য', serviceClient, publish_category_id, auto_sync !== false))
+        );
+        for (let j = 0; j < batchResults.length; j++) {
+          const r = batchResults[j];
+          if (r.status === 'fulfilled') results.push(r.value);
+          else results.push({ url: batch[j], success: false, error: r.reason?.message });
+        }
+        await new Promise(r => setTimeout(r, 50));
       }
+    };
+
+    if (background || personUrls.length > 10) {
+      // @ts-ignore EdgeRuntime is provided by Deno deploy
+      EdgeRuntime.waitUntil(runBatches().catch(e => console.error('bg err:', e)));
+      return new Response(
+        JSON.stringify({ success: true, started: true, total: personUrls.length, message: 'Background scraping started' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    await runBatches();
 
     const successCount = results.filter(r => r.success).length;
     return new Response(

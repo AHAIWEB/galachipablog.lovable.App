@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
       }
       personUrls = Array.from(new Set(expanded)).slice(0, limit);
       console.log('Parsed person URLs:', personUrls);
-    } else {
+    } else if (personUrls.length === 0) {
       const categoriesToScrape = category_tag
         ? PEOPLE_CATEGORIES.filter(c => c.name === category_tag)
         : PEOPLE_CATEGORIES;

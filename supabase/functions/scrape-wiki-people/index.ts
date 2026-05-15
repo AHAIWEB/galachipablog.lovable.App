@@ -51,13 +51,40 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { urls, category_tag, max_people, publish_category_id, auto_sync, mode } = body;
+    const { urls, list_urls, category_tag, max_people, publish_category_id, auto_sync, mode, background } = body;
 
     const serviceClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const limit = max_people || 50;
     const results: any[] = [];
 
     let personUrls: string[] = [];
+
+    // LIST MODE: discover person links from a Wikipedia list page
+    if (Array.isArray(list_urls) && list_urls.length > 0) {
+      const discovered = new Set<string>();
+      for (const listUrl of list_urls) {
+        if (typeof listUrl !== 'string' || !listUrl.startsWith('http')) continue;
+        try {
+          const resp = await fetchPage(listUrl);
+          if (!resp) continue;
+          const html = await resp.text();
+          // Extract all /wiki/ article links from content (skip namespaces)
+          const linkRegex = /<a[^>]+href="\/wiki\/([^":#?]+)"/gi;
+          let m;
+          while ((m = linkRegex.exec(html)) !== null) {
+            const slug = m[1];
+            if (slug.includes(':')) continue;
+            if (/^(বিষয়শ্রেণী|টেমপ্লেট|উইকিপিডিয়া|বিশেষ|সাহায্য|চিত্র|File|Help|Category|Template|Special|Wikipedia|Portal)/i.test(slug)) continue;
+            if (slug.length < 2) continue;
+            discovered.add(`${BENGALI_WIKI}/wiki/${slug}`);
+            if (discovered.size >= limit) break;
+          }
+        } catch (e) { console.log('list discover err:', (e as Error).message); }
+        if (discovered.size >= limit) break;
+      }
+      personUrls = Array.from(discovered).slice(0, limit);
+      console.log(`Discovered ${personUrls.length} person URLs from list`);
+    }
 
     // SYNC MODE: re-scrape all auto_sync wiki entries
     if (mode === 'sync') {

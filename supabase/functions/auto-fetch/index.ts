@@ -73,6 +73,7 @@ Deno.serve(async (req) => {
                 excerpt: article.excerpt || '',
                 featured_image: article.image || '',
                 category_id: feed.category_id || null,
+                source_url: article.link || '',
               });
             }
           }
@@ -107,6 +108,7 @@ Deno.serve(async (req) => {
                 excerpt: article.excerpt || '',
                 featured_image: article.image || '',
                 category_id: feed.category_id || null,
+                source_url: article.link || feedUrl,
               });
             }
           }

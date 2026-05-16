@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -68,6 +68,91 @@ export default function AdminArchiveHub() {
   const [peopleAutoPublish, setPeopleAutoPublish] = useState(false);
   const [peoplePubCatId, setPeoplePubCatId] = useState("");
   const [peopleCustomUrls, setPeopleCustomUrls] = useState("");
+
+  // Live scrape progress (for list-based wiki people scrapers)
+  type ScrapeProgress = {
+    label: string;
+    target: number;
+    startCount: number;
+    current: number;
+    startedAt: number;
+    done: boolean;
+  };
+  const [scrapeProgress, setScrapeProgress] = useState<ScrapeProgress | null>(null);
+  const progressTimerRef = useRef<number | null>(null);
+
+  const runListScrape = async ({ listUrl, categoryTag, label }: { listUrl: string; categoryTag: string; label: string }) => {
+    setIsScrapingPeople(true);
+    try {
+      // Snapshot of current count for this category
+      const { count: startCount } = await supabase
+        .from("archived_contents")
+        .select("id", { count: "exact", head: true })
+        .like("source_url", "%bn.wikipedia.org%");
+
+      const { data, error } = await supabase.functions.invoke("scrape-wiki-people", {
+        body: {
+          list_urls: [listUrl],
+          category_tag: categoryTag,
+          max_people: 500,
+          auto_sync: true,
+          background: true,
+          publish_category_id: peopleAutoPublish ? peoplePubCatId : undefined,
+        },
+      });
+      if (error) throw error;
+      const total = Number(data?.total ?? 0);
+      toast.success(`ব্যাকগ্রাউন্ডে ${total} জনের প্রোফাইল স্ক্র্যাপিং শুরু হয়েছে`);
+      setScrapeProgress({
+        label,
+        target: total,
+        startCount: startCount ?? 0,
+        current: 0,
+        startedAt: Date.now(),
+        done: total === 0,
+      });
+    } catch (e: any) {
+      toast.error(e.message || "স্ক্র্যাপ ব্যর্থ");
+    } finally {
+      setIsScrapingPeople(false);
+    }
+  };
+
+  // Poll progress every 4s while a scrape is active
+  useEffect(() => {
+    if (!scrapeProgress || scrapeProgress.done) {
+      if (progressTimerRef.current) {
+        window.clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      return;
+    }
+    const tick = async () => {
+      const { count } = await supabase
+        .from("archived_contents")
+        .select("id", { count: "exact", head: true })
+        .like("source_url", "%bn.wikipedia.org%");
+      setScrapeProgress(prev => {
+        if (!prev) return prev;
+        const current = Math.max(0, (count ?? 0) - prev.startCount);
+        const done = current >= prev.target || (Date.now() - prev.startedAt > 15 * 60_000);
+        if (done && !prev.done) {
+          toast.success(`✅ ${prev.label} স্ক্র্যাপিং সম্পন্ন — ${current}/${prev.target} প্রোফাইল সেভ হয়েছে`);
+          qc.invalidateQueries({ queryKey: ["archive-contents"] });
+        }
+        return { ...prev, current, done };
+      });
+    };
+    tick();
+    progressTimerRef.current = window.setInterval(tick, 4000);
+    return () => {
+      if (progressTimerRef.current) {
+        window.clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+    };
+  }, [scrapeProgress?.label, scrapeProgress?.done]);
+
 
   const [schedForm, setSchedForm] = useState({ name: "", url: "", scrape_type: "single", interval_hours: 24, category: "", category_id: "" });
 

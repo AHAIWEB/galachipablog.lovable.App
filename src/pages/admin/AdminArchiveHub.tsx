@@ -549,33 +549,19 @@ export default function AdminArchiveHub() {
               বাংলা উইকিপিডিয়ার <span className="font-mono">বাংলাদেশী ব্যক্তিবর্গের তালিকা</span> পেজ থেকে সকল ব্যক্তির লিংক ডিসকভার করে প্রতিটির পূর্ণ প্রোফাইল (ইনফোবক্স, ছবি, সেকশন সহ) আর্কাইভে সেভ করবে।
             </p>
             <button
-              onClick={async () => {
-                setIsScrapingPeople(true);
-                try {
-                  const { data, error } = await supabase.functions.invoke("scrape-wiki-people", {
-                    body: {
-                      list_urls: ["https://bn.wikipedia.org/wiki/বাংলাদেশী_ব্যক্তিবর্গের_তালিকা"],
-                      category_tag: "বাংলাদেশী",
-                      max_people: 500,
-                      auto_sync: true,
-                      background: true,
-                      publish_category_id: peopleAutoPublish ? peoplePubCatId : undefined,
-                    },
-                  });
-                  if (error) throw error;
-                  toast.success(`ব্যাকগ্রাউন্ডে ${data?.total ?? 0} জনের প্রোফাইল স্ক্র্যাপিং শুরু হয়েছে`);
-                  qc.invalidateQueries({ queryKey: ["archive-contents"] });
-                } catch (e: any) {
-                  toast.error(e.message || "স্ক্র্যাপ ব্যর্থ");
-                } finally {
-                  setIsScrapingPeople(false);
-                }
-              }}
+              onClick={() => runListScrape({
+                listUrl: "https://bn.wikipedia.org/wiki/বাংলাদেশী_ব্যক্তিবর্গের_তালিকা",
+                categoryTag: "বাংলাদেশী",
+                label: "বাংলাদেশী ব্যক্তিবর্গ",
+              })}
               disabled={isScrapingPeople}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
               {isScrapingPeople ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
               {isScrapingPeople ? "শুরু হচ্ছে..." : "বাংলাদেশী ব্যক্তিবর্গ স্ক্র্যাপ করুন"}
             </button>
+            {scrapeProgress && scrapeProgress.label === "বাংলাদেশী ব্যক্তিবর্গ" && (
+              <ScrapeProgressBar progress={scrapeProgress} />
+            )}
           </div>
 
           {/* Wikipedia People List (global) scraper */}
@@ -587,33 +573,19 @@ export default function AdminArchiveHub() {
               বাংলা উইকিপিডিয়ার <span className="font-mono">উইকিপিডিয়ার ব্যক্তিদের তালিকা</span> পেজ থেকে সকল ব্যক্তির লিংক ডিসকভার করে প্রতিটির পূর্ণ প্রোফাইল আর্কাইভে সেভ করবে।
             </p>
             <button
-              onClick={async () => {
-                setIsScrapingPeople(true);
-                try {
-                  const { data, error } = await supabase.functions.invoke("scrape-wiki-people", {
-                    body: {
-                      list_urls: ["https://bn.wikipedia.org/wiki/উইকিপিডিয়ার_ব্যক্তিদের_তালিকা"],
-                      category_tag: "ব্যক্তিত্ব",
-                      max_people: 500,
-                      auto_sync: true,
-                      background: true,
-                      publish_category_id: peopleAutoPublish ? peoplePubCatId : undefined,
-                    },
-                  });
-                  if (error) throw error;
-                  toast.success(`ব্যাকগ্রাউন্ডে ${data?.total ?? 0} জনের প্রোফাইল স্ক্র্যাপিং শুরু হয়েছে`);
-                  qc.invalidateQueries({ queryKey: ["archive-contents"] });
-                } catch (e: any) {
-                  toast.error(e.message || "স্ক্র্যাপ ব্যর্থ");
-                } finally {
-                  setIsScrapingPeople(false);
-                }
-              }}
+              onClick={() => runListScrape({
+                listUrl: "https://bn.wikipedia.org/wiki/উইকিপিডিয়ার_ব্যক্তিদের_তালিকা",
+                categoryTag: "ব্যক্তিত্ব",
+                label: "উইকিপিডিয়ার ব্যক্তি",
+              })}
               disabled={isScrapingPeople}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
               {isScrapingPeople ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
               {isScrapingPeople ? "শুরু হচ্ছে..." : "উইকিপিডিয়ার ব্যক্তি স্ক্র্যাপ করুন"}
             </button>
+            {scrapeProgress && scrapeProgress.label === "উইকিপিডিয়ার ব্যক্তি" && (
+              <ScrapeProgressBar progress={scrapeProgress} />
+            )}
           </div>
 
           {/* Wiki People scraper */}

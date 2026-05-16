@@ -64,18 +64,27 @@ Deno.serve(async (req) => {
       const discovered = new Set<string>();
       for (const listUrl of list_urls) {
         if (typeof listUrl !== 'string' || !listUrl.startsWith('http')) continue;
+        // Slug of the list page itself — exclude self-links
+        let selfSlug = '';
+        try { selfSlug = decodeURIComponent(new URL(listUrl).pathname.replace(/^\/wiki\//, '')); } catch { /* ignore */ }
         try {
           const resp = await fetchPage(listUrl);
           if (!resp) continue;
           const html = await resp.text();
-          // Extract all /wiki/ article links from content (skip namespaces)
-          const linkRegex = /<a[^>]+href="\/wiki\/([^":#?]+)"/gi;
+          // Match: href="/wiki/X", href="//bn.wikipedia.org/wiki/X", href="https://bn.wikipedia.org/wiki/X"
+          // Stop at " or ? or # so redlinks (?action=edit) are excluded
+          const linkRegex = /<a[^>]+href="(?:https?:)?(?:\/\/[^/"]*bn\.wikipedia\.org)?\/wiki\/([^"#?]+)"/gi;
           let m;
           while ((m = linkRegex.exec(html)) !== null) {
-            const slug = m[1];
-            if (slug.includes(':')) continue;
-            if (/^(বিষয়শ্রেণী|টেমপ্লেট|উইকিপিডিয়া|বিশেষ|সাহায্য|চিত্র|File|Help|Category|Template|Special|Wikipedia|Portal)/i.test(slug)) continue;
-            if (slug.length < 2) continue;
+            let slug = m[1];
+            if (slug.includes(':') || slug.includes('%3A')) continue;
+            let decoded = slug;
+            try { decoded = decodeURIComponent(slug); } catch { /* ignore */ }
+            if (decoded === selfSlug) continue;
+            if (/^(বিষয়শ্রেণী|টেমপ্লেট|উইকিপিডিয়া|বিশেষ|সাহায্য|চিত্র|প্রধান_পাতা|File|Help|Category|Template|Special|Wikipedia|Portal|Main_Page)/i.test(decoded)) continue;
+            // Skip other "list/তালিকা" pages — we want individual person profiles
+            if (/তালিকা$/.test(decoded)) continue;
+            if (decoded.length < 2) continue;
             discovered.add(`${BENGALI_WIKI}/wiki/${slug}`);
             if (discovered.size >= limit) break;
           }
@@ -471,7 +480,7 @@ async function saveProfile(
     html_content: profile.html_content,
     excerpt: profile.excerpt,
     featured_image: profile.featured_image,
-    images: JSON.stringify(profile.images),
+    images: profile.images,
     tags: profile.tags,
     category: `পিপল-${categoryTag}`,
     source_name: 'বাংলা উইকিপিডিয়া',

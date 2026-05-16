@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Download, Type, Image as ImageIcon, Palette, RotateCcw, Upload, Sparkles, Lock, Unlock, Share2, Send, Sticker, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -176,6 +177,18 @@ export default function AdminPhotocard() {
   const [stickers, setStickers] = useState<StickerOverlay[]>([]);
   const [showStickerPanel, setShowStickerPanel] = useState(false);
   const [selectedStickerIdx, setSelectedStickerIdx] = useState<number | null>(null);
+
+  // Prefill from URL params (e.g. opened from "Make Card" on a post)
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const t = searchParams.get("title");
+    const img = searchParams.get("image");
+    if (img) setBgImage(img);
+    if (t) {
+      setOverlays([{ ...defaultOverlay, text: t.slice(0, 200) }]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const ar = aspectRatios.find(a => a.value === aspectRatio) ?? aspectRatios[0];
   const allFonts = [...googleFonts, ...customFonts];

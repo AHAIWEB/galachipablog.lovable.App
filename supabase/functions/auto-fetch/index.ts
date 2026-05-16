@@ -179,20 +179,38 @@ Deno.serve(async (req) => {
   }
 });
 
-async function autoPublishPost(supabase: any, article: { title: string; content: string; excerpt: string; featured_image: string; category_id: string | null }) {
+async function autoPublishPost(supabase: any, article: { title: string; content: string; excerpt: string; featured_image: string; category_id: string | null; source_url?: string }) {
   try {
     const title = (article.title || '').trim();
-    // Skip junk titles: too short, generic page names, or category-like names
     const junkPatterns = /^(privacy\s*policy|terms|about\s*us|contact|home|know\s*more|যোগাযোগ|শর্তাবলী|untitled)$/i;
     if (title.length < 10 || junkPatterns.test(title)) {
       console.log(`Skipping junk title: "${title}"`);
       return;
     }
-    // Skip if title has no spaces (likely a single word / category name)
     const wordCount = title.split(/\s+/).length;
     if (wordCount < 2) {
       console.log(`Skipping single-word title: "${title}"`);
       return;
+    }
+
+    // Strip editor / site-chrome noise from content
+    let content = article.content || '';
+    if (content) {
+      const noisePatterns = [
+        /সম্পাদক\s*[:：][^\n।]{0,200}/gi,
+        /প্রকাশিত\s*[:：][^\n।]{0,200}/gi,
+        /আপডেট\s*[:：][^\n।]{0,200}/gi,
+        /প্রকাশক\s*[:：][^\n।]{0,200}/gi,
+        /সর্বস্বত্ব\s*সংরক্ষিত[^\n।]{0,200}/gi,
+        /কপিরাইট\s*©[^\n।]{0,200}/gi,
+        /Copyright\s*©[^\n।]{0,200}/gi,
+        /All\s+rights?\s+reserved[^\n।]{0,200}/gi,
+        /(?:Published|Updated|Editor)\s*[:：][^\n।]{0,200}/gi,
+        /(?:শেয়ার|Share)\s*(?:করুন|this)[^\n।]{0,100}/gi,
+        /(?:Read more|আরো পড়ুন|আরও পড়ুন)\s*[:：>→]*[^\n।]{0,100}/gi,
+      ];
+      for (const re of noisePatterns) content = content.replace(re, '');
+      content = content.replace(/\s+/g, ' ').trim();
     }
 
     const slug = title.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 200) + '-' + Date.now();
@@ -205,12 +223,13 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
     await supabase.from('posts').insert({
       title,
       slug,
-      content: article.content || null,
+      content: content || null,
       excerpt: (article.excerpt || '').slice(0, 500) || null,
       featured_image: article.featured_image || null,
       category_id: article.category_id,
       status: 'published',
       is_featured: !!article.featured_image,
+      source_url: article.source_url || null,
     });
   } catch (e) {
     console.error('Auto-publish error:', (e as Error).message);

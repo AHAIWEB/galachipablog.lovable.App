@@ -301,9 +301,9 @@ export default function PostDetail() {
               })()}
             </div>
 
-            {/* Share */}
+            {/* Share + Card Maker */}
             <div className="bg-card rounded-2xl border border-border p-5 mt-4 shadow-sm animate-fade-in">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Share2 className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-heading font-semibold">শেয়ার করুন:</span>
                 <div className="flex gap-1">
@@ -318,6 +318,15 @@ export default function PostDetail() {
                     </button>
                   ))}
                 </div>
+                <Link
+                  to={`/admin/photocard?title=${encodeURIComponent(post.title)}${post.featured_image ? `&image=${encodeURIComponent(post.featured_image)}` : ""}`}
+                  target="_blank"
+                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium transition-colors"
+                  title="এই পোস্ট থেকে কার্ড তৈরি করুন"
+                >
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  কার্ড বানান
+                </Link>
               </div>
             </div>
 

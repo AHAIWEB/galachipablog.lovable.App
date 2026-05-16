@@ -1050,3 +1050,29 @@ export default function AdminArchiveHub() {
     </div>
   );
 }
+
+function ScrapeProgressBar({ progress }: { progress: { label: string; target: number; current: number; startedAt: number; done: boolean } }) {
+  const pct = progress.target > 0 ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : 0;
+  const elapsedSec = Math.floor((Date.now() - progress.startedAt) / 1000);
+  const remaining = progress.current > 0 && !progress.done
+    ? Math.max(0, Math.round((elapsedSec / progress.current) * (progress.target - progress.current)))
+    : null;
+  return (
+    <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border">
+      <div className="flex items-center justify-between text-xs mb-1.5">
+        <span className="font-medium">
+          {progress.done ? "✅ সম্পন্ন" : "⏳ চলছে..."} — {progress.current}/{progress.target}
+        </span>
+        <span className="text-muted-foreground">
+          {progress.done ? `${elapsedSec}s` : remaining !== null ? `~${remaining}s বাকি` : `${elapsedSec}s`}
+        </span>
+      </div>
+      <div className="h-2 w-full bg-background rounded-full overflow-hidden">
+        <div
+          className={`h-full transition-all ${progress.done ? "bg-green-500" : "bg-primary"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}

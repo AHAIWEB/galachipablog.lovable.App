@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CommentSection from "@/components/CommentSection";
-import { Calendar, Eye, Share2, Facebook, Twitter, Link as LinkIcon, ArrowLeft, Bookmark, BookmarkCheck } from "lucide-react";
+import { Calendar, Eye, Share2, Facebook, Twitter, Link as LinkIcon, ArrowLeft, Bookmark, BookmarkCheck, ImagePlus, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
@@ -265,20 +265,40 @@ export default function PostDetail() {
                 );
               })()}
 
-              {/* Source link */}
-              {(post as any).source_url && (
-                <div className="mt-6 pt-4 border-t border-border">
-                  <a
-                    href={(post as any).source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline font-medium"
-                  >
-                    <LinkIcon className="h-4 w-4" />
-                    মূল সূত্র / বিস্তারিত পড়ুন →
-                  </a>
-                </div>
-              )}
+              {/* Source link with favicon */}
+              {(post as any).source_url && (() => {
+                const srcUrl = (post as any).source_url as string;
+                let host = "";
+                try { host = new URL(srcUrl).hostname.replace(/^www\./, ""); } catch { /* ignore */ }
+                const favicon = host ? `https://www.google.com/s2/favicons?domain=${host}&sz=64` : "";
+                return (
+                  <div className="mt-6 pt-4 border-t border-border">
+                    <a
+                      href={srcUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-3 px-4 py-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors border border-border group"
+                    >
+                      {favicon && (
+                        <img
+                          src={favicon}
+                          alt={host}
+                          className="h-6 w-6 rounded"
+                          loading="lazy"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        />
+                      )}
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs text-muted-foreground">মূল সূত্র</span>
+                        <span className="text-sm font-medium text-primary group-hover:underline truncate">
+                          {host || "বিস্তারিত পড়ুন"}
+                        </span>
+                      </div>
+                      <ExternalLink className="h-4 w-4 text-muted-foreground ml-1 shrink-0" />
+                    </a>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Share */}

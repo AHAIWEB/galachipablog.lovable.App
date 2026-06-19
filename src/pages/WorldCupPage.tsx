@@ -92,7 +92,80 @@ const Section = ({ icon: Icon, title, children, accent = "primary" }: any) => (
   </section>
 );
 
-export default function WorldCupPage() {
+function TopScorersLeaderboard() {
+  const [group, setGroup] = useState<string>("all");
+  const [matchday, setMatchday] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"goals" | "assists">("goals");
+
+  const groups = useMemo(() => ["all", ...Array.from(new Set(topScorersData.map(p => p.group))).sort()], []);
+  const matchdays = ["all", "1", "2", "3"];
+
+  const rows = useMemo(() => {
+    return topScorersData
+      .filter(p => group === "all" || p.group === group)
+      .map(p => {
+        const goals = matchday === "all" ? p.goals : (p.perMatchday[parseInt(matchday) - 1] ?? 0);
+        return { ...p, displayGoals: goals };
+      })
+      .filter(p => matchday === "all" || p.displayGoals > 0)
+      .sort((a, b) => sortBy === "goals" ? b.displayGoals - a.displayGoals : b.assists - a.assists);
+  }, [group, matchday, sortBy]);
+
+  const max = Math.max(1, ...rows.map(r => r.displayGoals));
+
+  return (
+    <Section icon={Goal} title="সর্বোচ্চ গোলদাতা — লিডারবোর্ড" accent="secondary">
+      <Card className="p-5">
+        <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-xs text-muted-foreground mr-1">গ্রুপ:</span>
+            {groups.map(g => (
+              <Button key={g} size="sm" variant={group === g ? "default" : "outline"} onClick={() => setGroup(g)} className="h-7 px-3 text-xs">
+                {g === "all" ? "সব" : `গ্রুপ ${g}`}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 flex-wrap ml-auto">
+            <span className="text-xs text-muted-foreground mr-1">ম্যাচডে:</span>
+            {matchdays.map(m => (
+              <Button key={m} size="sm" variant={matchday === m ? "default" : "outline"} onClick={() => setMatchday(m)} className="h-7 px-3 text-xs">
+                {m === "all" ? "সব" : `ম্যাচডে ${m}`}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1 w-full sm:w-auto">
+            <span className="text-xs text-muted-foreground mr-1">সাজানো:</span>
+            <Button size="sm" variant={sortBy === "goals" ? "default" : "outline"} onClick={() => setSortBy("goals")} className="h-7 px-3 text-xs">গোল</Button>
+            <Button size="sm" variant={sortBy === "assists" ? "default" : "outline"} onClick={() => setSortBy("assists")} className="h-7 px-3 text-xs">অ্যাসিস্ট</Button>
+          </div>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8 text-sm">এই ফিল্টারে কোনো গোলদাতা নেই</div>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((p, i) => (
+              <div key={p.name} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-yellow-500 text-white" : i === 1 ? "bg-gray-400 text-white" : i === 2 ? "bg-orange-600 text-white" : "bg-muted text-foreground"}`}>{i + 1}</div>
+                <div className="text-2xl">{p.flag}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{p.name}</div>
+                  <div className="text-xs text-muted-foreground">{p.country} • গ্রুপ {p.group} • {p.matches} ম্যাচ • {p.assists} অ্যাসিস্ট</div>
+                  <div className="mt-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-secondary" style={{ width: `${(p.displayGoals / max) * 100}%` }} />
+                  </div>
+                </div>
+                <Badge variant="secondary" className="text-base font-bold whitespace-nowrap">{p.displayGoals} ⚽</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </Section>
+  );
+}
+
+
   useEffect(() => {
     document.title = "ফিফা ফুটবল বিশ্বকাপ ২০২৬ - লাইভ স্কোর, পয়েন্ট টেবিল ও সংবাদ";
     const desc = "ফিফা বিশ্বকাপ ২০২৬ এর আজকের ম্যাচ প্রেডিকশন, পয়েন্ট টেবিল, ফিকশ্চার, লাইভ স্কোর, তারকা, ভেন্যু ও পরিসংখ্যান এক জায়গায়।";

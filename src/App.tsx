@@ -33,6 +33,7 @@ import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import WebsiteLinksPage from "./pages/WebsiteLinksPage";
 import GalleryPage from "./pages/GalleryPage";
+import WorldCupPage from "./pages/WorldCupPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/website-links" element={<WebsiteLinksPage />} />
             <Route path="/gallery" element={<GalleryPage />} />
+            <Route path="/worldcup" element={<WorldCupPage />} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="posts" element={<AdminPosts />} />

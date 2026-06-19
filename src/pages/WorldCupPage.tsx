@@ -1,4 +1,4 @@
-import { Helmet } from "react-helmet-async";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -84,13 +84,15 @@ const Section = ({ icon: Icon, title, children, accent = "primary" }: any) => (
 );
 
 export default function WorldCupPage() {
+  useEffect(() => {
+    document.title = "ফিফা ফুটবল বিশ্বকাপ ২০২৬ - লাইভ স্কোর, পয়েন্ট টেবিল ও সংবাদ";
+    const desc = "ফিফা বিশ্বকাপ ২০২৬ এর আজকের ম্যাচ প্রেডিকশন, পয়েন্ট টেবিল, ফিকশ্চার, লাইভ স্কোর, তারকা, ভেন্যু ও পরিসংখ্যান এক জায়গায়।";
+    let m = document.querySelector('meta[name="description"]');
+    if (!m) { m = document.createElement('meta'); m.setAttribute('name','description'); document.head.appendChild(m); }
+    m.setAttribute('content', desc);
+  }, []);
   return (
     <div className="min-h-screen bg-background">
-      <Helmet>
-        <title>ফিফা ফুটবল বিশ্বকাপ ২০২৬ - লাইভ স্কোর, পয়েন্ট টেবিল ও সংবাদ</title>
-        <meta name="description" content="ফিফা বিশ্বকাপ ২০২৬ এর আজকের ম্যাচ প্রেডিকশন, পয়েন্ট টেবিল, ফিকশ্চার, লাইভ স্কোর, তারকা, ভেন্যু ও পরিসংখ্যান এক জায়গায়।" />
-        <link rel="canonical" href="/worldcup" />
-      </Helmet>
       <SiteHeader />
 
       {/* HERO */}

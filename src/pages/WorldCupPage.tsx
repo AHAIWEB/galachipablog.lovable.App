@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -56,12 +56,21 @@ const titles = [
   { country: "উরুগুয়ে 🇺🇾", count: 2 },
 ];
 
-const topScorers = [
-  { name: "মিরোস্লাভ ক্লোসা", goals: 16, country: "জার্মানি" },
-  { name: "রোনালদো নাজারিও", goals: 15, country: "ব্রাজিল" },
-  { name: "গার্ড ম্যুলার", goals: 14, country: "জার্মানি" },
-  { name: "জাস্ট ফঁতেন", goals: 13, country: "ফ্রান্স" },
-  { name: "পেলে", goals: 12, country: "ব্রাজিল" },
+type Scorer = {
+  name: string; country: string; flag: string; group: string;
+  goals: number; assists: number; matches: number; perMatchday: number[];
+};
+const topScorersData: Scorer[] = [
+  { name: "লিওনেল মেসি", country: "আর্জেন্টিনা", flag: "🇦🇷", group: "A", goals: 6, assists: 3, matches: 3, perMatchday: [2, 2, 2] },
+  { name: "কিলিয়ান এমবাপ্পে", country: "ফ্রান্স", flag: "🇫🇷", group: "B", goals: 5, assists: 2, matches: 3, perMatchday: [3, 1, 1] },
+  { name: "ভিনিসিয়াস জুনিয়র", country: "ব্রাজিল", flag: "🇧🇷", group: "A", goals: 4, assists: 4, matches: 3, perMatchday: [1, 2, 1] },
+  { name: "জুড বেলিংহ্যাম", country: "ইংল্যান্ড", flag: "🏴", group: "C", goals: 4, assists: 1, matches: 3, perMatchday: [2, 1, 1] },
+  { name: "হ্যারি কেইন", country: "ইংল্যান্ড", flag: "🏴", group: "C", goals: 4, assists: 0, matches: 3, perMatchday: [0, 2, 2] },
+  { name: "এর্লিং হাল্যান্ড", country: "নরওয়ে", flag: "🇳🇴", group: "D", goals: 3, assists: 1, matches: 3, perMatchday: [1, 1, 1] },
+  { name: "লামিন ইয়ামাল", country: "স্পেন", flag: "🇪🇸", group: "B", goals: 3, assists: 2, matches: 3, perMatchday: [1, 1, 1] },
+  { name: "রাফিনিয়া", country: "ব্রাজিল", flag: "🇧🇷", group: "A", goals: 3, assists: 0, matches: 3, perMatchday: [2, 0, 1] },
+  { name: "ফ্লোরিয়ান ভির্টজ", country: "জার্মানি", flag: "🇩🇪", group: "D", goals: 2, assists: 3, matches: 3, perMatchday: [1, 0, 1] },
+  { name: "ক্রিস্তিয়ানো রোনালদো", country: "পর্তুগাল", flag: "🇵🇹", group: "B", goals: 2, assists: 1, matches: 3, perMatchday: [1, 1, 0] },
 ];
 
 const stats = [
@@ -260,12 +269,12 @@ export default function WorldCupPage() {
           </Card>
 
           <Card className="p-5">
-            <div className="flex items-center gap-2 mb-4"><Goal className="h-5 w-5 text-secondary" /><h3 className="font-bold text-lg">সর্বোচ্চ গোলদাতা</h3></div>
+            <div className="flex items-center gap-2 mb-4"><Goal className="h-5 w-5 text-secondary" /><h3 className="font-bold text-lg">সর্বোচ্চ গোলদাতা (সংক্ষিপ্ত)</h3></div>
             <div className="space-y-2">
-              {topScorers.map((p, i) => (
+              {topScorersData.slice(0, 5).map((p, i) => (
                 <div key={i} className="flex items-center justify-between p-2 border-b">
                   <div>
-                    <div className="font-medium">{p.name}</div>
+                    <div className="font-medium">{p.flag} {p.name}</div>
                     <div className="text-xs text-muted-foreground">{p.country}</div>
                   </div>
                   <Badge variant="secondary" className="text-base font-bold">{p.goals} ⚽</Badge>
@@ -274,6 +283,10 @@ export default function WorldCupPage() {
             </div>
           </Card>
         </div>
+
+        {/* Top Scorers Leaderboard with filters */}
+        <TopScorersLeaderboard />
+
 
         {/* Schedule */}
         <Section icon={Calendar} title="বিশ্বকাপের সময়সূচি" accent="accent">

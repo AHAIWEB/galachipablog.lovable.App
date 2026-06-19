@@ -165,7 +165,7 @@ function TopScorersLeaderboard() {
   );
 }
 
-
+export default function WorldCupPage() {
   useEffect(() => {
     document.title = "ফিফা ফুটবল বিশ্বকাপ ২০২৬ - লাইভ স্কোর, পয়েন্ট টেবিল ও সংবাদ";
     const desc = "ফিফা বিশ্বকাপ ২০২৬ এর আজকের ম্যাচ প্রেডিকশন, পয়েন্ট টেবিল, ফিকশ্চার, লাইভ স্কোর, তারকা, ভেন্যু ও পরিসংখ্যান এক জায়গায়।";

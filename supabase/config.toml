@@ -2,3 +2,6 @@ project_id = "fhtyknfxfafzncjdnana"
 
 [functions.rss-feed]
 verify_jwt = false
+
+[functions.og-post]
+verify_jwt = false

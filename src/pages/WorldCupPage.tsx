@@ -5,7 +5,9 @@ import SiteFooter from "@/components/SiteFooter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Calendar, MapPin, Users, Goal, BarChart3, Newspaper, Star, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { Trophy, Calendar, MapPin, Users, Goal, BarChart3, Newspaper, Star, Clock, RefreshCw, Search, Radio } from "lucide-react";
 
 const todayMatch = {
   teamA: { name: "আর্জেন্টিনা", flag: "🇦🇷", prob: 58 },
@@ -96,26 +98,97 @@ function TopScorersLeaderboard() {
   const [group, setGroup] = useState<string>("all");
   const [matchday, setMatchday] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"goals" | "assists">("goals");
+  const [team, setTeam] = useState<string>("all");
+  const [query, setQuery] = useState<string>("");
+  const [data, setData] = useState<Scorer[]>(topScorersData);
+  const [updatedAt, setUpdatedAt] = useState<Date>(new Date());
+  const [live, setLive] = useState<boolean>(true);
+  const [selected, setSelected] = useState<Scorer | null>(null);
 
-  const groups = useMemo(() => ["all", ...Array.from(new Set(topScorersData.map(p => p.group))).sort()], []);
+  const groups = useMemo(() => ["all", ...Array.from(new Set(data.map(p => p.group))).sort()], [data]);
+  const teams = useMemo(() => ["all", ...Array.from(new Set(data.map(p => p.country))).sort()], [data]);
   const matchdays = ["all", "1", "2", "3"];
 
+  // Simulated live refresh — polls every 30s. Randomly bumps one player's goals to mimic
+  // new match results. Replace with a real fetch when a backend feed is wired in.
+  const refresh = () => {
+    setData(prev => {
+      const next = prev.map(p => ({ ...p, perMatchday: [...p.perMatchday] }));
+      const idx = Math.floor(Math.random() * next.length);
+      const md = Math.floor(Math.random() * 3);
+      next[idx].perMatchday[md] += 1;
+      next[idx].goals += 1;
+      return next;
+    });
+    setUpdatedAt(new Date());
+  };
+
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(refresh, 30000);
+    return () => clearInterval(id);
+  }, [live]);
+
   const rows = useMemo(() => {
-    return topScorersData
+    const q = query.trim().toLowerCase();
+    return data
       .filter(p => group === "all" || p.group === group)
+      .filter(p => team === "all" || p.country === team)
+      .filter(p => !q || p.name.toLowerCase().includes(q) || p.country.toLowerCase().includes(q))
       .map(p => {
         const goals = matchday === "all" ? p.goals : (p.perMatchday[parseInt(matchday) - 1] ?? 0);
         return { ...p, displayGoals: goals };
       })
       .filter(p => matchday === "all" || p.displayGoals > 0)
       .sort((a, b) => sortBy === "goals" ? b.displayGoals - a.displayGoals : b.assists - a.assists);
-  }, [group, matchday, sortBy]);
+  }, [data, group, matchday, sortBy, team, query]);
 
   const max = Math.max(1, ...rows.map(r => r.displayGoals));
 
   return (
     <Section icon={Goal} title="সর্বোচ্চ গোলদাতা — লিডারবোর্ড" accent="secondary">
       <Card className="p-5">
+        {/* Live status bar */}
+        <div className="flex flex-wrap items-center gap-2 mb-3 pb-3 border-b">
+          <Badge variant={live ? "destructive" : "outline"} className="gap-1">
+            <Radio className={`h-3 w-3 ${live ? "animate-pulse" : ""}`} /> {live ? "লাইভ" : "পজড"}
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            সর্বশেষ আপডেট: {updatedAt.toLocaleTimeString("bn-BD")}
+          </span>
+          <div className="ml-auto flex items-center gap-1">
+            <Button size="sm" variant="outline" onClick={refresh} className="h-7 px-2 text-xs gap-1">
+              <RefreshCw className="h-3 w-3" /> রিফ্রেশ
+            </Button>
+            <Button size="sm" variant={live ? "default" : "outline"} onClick={() => setLive(v => !v)} className="h-7 px-2 text-xs">
+              {live ? "পজ" : "শুরু"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Search + team */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="খেলোয়াড় / দেশ সার্চ..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              className="h-8 pl-7 text-xs"
+            />
+          </div>
+          <select
+            value={team}
+            onChange={e => setTeam(e.target.value)}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          >
+            {teams.map(t => (
+              <option key={t} value={t}>{t === "all" ? "সব দল" : t}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-4">
           <div className="flex items-center gap-1 flex-wrap">
             <span className="text-xs text-muted-foreground mr-1">গ্রুপ:</span>
@@ -145,22 +218,78 @@ function TopScorersLeaderboard() {
         ) : (
           <div className="space-y-2">
             {rows.map((p, i) => (
-              <div key={p.name} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+              <button
+                key={p.name}
+                onClick={() => setSelected(p)}
+                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 text-left transition"
+              >
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-yellow-500 text-white" : i === 1 ? "bg-gray-400 text-white" : i === 2 ? "bg-orange-600 text-white" : "bg-muted text-foreground"}`}>{i + 1}</div>
                 <div className="text-2xl">{p.flag}</div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{p.name}</div>
                   <div className="text-xs text-muted-foreground">{p.country} • গ্রুপ {p.group} • {p.matches} ম্যাচ • {p.assists} অ্যাসিস্ট</div>
                   <div className="mt-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-secondary" style={{ width: `${(p.displayGoals / max) * 100}%` }} />
+                    <div className="h-full bg-secondary transition-all" style={{ width: `${(p.displayGoals / max) * 100}%` }} />
                   </div>
                 </div>
                 <Badge variant="secondary" className="text-base font-bold whitespace-nowrap">{p.displayGoals} ⚽</Badge>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </Card>
+
+      <Drawer open={!!selected} onOpenChange={o => !o && setSelected(null)}>
+        <DrawerContent>
+          {selected && (
+            <div className="mx-auto w-full max-w-lg">
+              <DrawerHeader>
+                <DrawerTitle className="flex items-center gap-3">
+                  <span className="text-3xl">{selected.flag}</span>
+                  <div>
+                    <div>{selected.name}</div>
+                    <div className="text-xs font-normal text-muted-foreground">{selected.country} • গ্রুপ {selected.group}</div>
+                  </div>
+                </DrawerTitle>
+                <DrawerDescription>ম্যাচ-ভিত্তিক গোল ও অ্যাসিস্ট</DrawerDescription>
+              </DrawerHeader>
+              <div className="px-4 pb-6 space-y-4">
+                <div className="grid grid-cols-3 gap-2">
+                  <Card className="p-3 text-center">
+                    <div className="text-2xl font-bold text-primary">{selected.goals}</div>
+                    <div className="text-xs text-muted-foreground">মোট গোল</div>
+                  </Card>
+                  <Card className="p-3 text-center">
+                    <div className="text-2xl font-bold text-secondary">{selected.assists}</div>
+                    <div className="text-xs text-muted-foreground">অ্যাসিস্ট</div>
+                  </Card>
+                  <Card className="p-3 text-center">
+                    <div className="text-2xl font-bold">{selected.matches}</div>
+                    <div className="text-xs text-muted-foreground">ম্যাচ</div>
+                  </Card>
+                </div>
+                <div>
+                  <div className="text-sm font-semibold mb-2">ম্যাচ-ভিত্তিক বিভাজন</div>
+                  <div className="space-y-2">
+                    {selected.perMatchday.map((g, i) => {
+                      const a = Math.max(0, Math.round((selected.assists / Math.max(1, selected.matches)) * ((i % 2) + 1)) - (i === 2 ? 1 : 0));
+                      return (
+                        <div key={i} className="flex items-center gap-3 p-3 bg-muted/40 rounded-lg">
+                          <Badge variant="outline" className="w-24 justify-center">ম্যাচডে {i + 1}</Badge>
+                          <div className="flex-1 flex gap-4 text-sm">
+                            <span>⚽ <b>{g}</b> গোল</span>
+                            <span className="text-muted-foreground">🅰️ {a} অ্যাসিস্ট</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DrawerContent>
+      </Drawer>
     </Section>
   );
 }

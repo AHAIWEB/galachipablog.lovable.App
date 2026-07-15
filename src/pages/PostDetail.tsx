@@ -90,6 +90,15 @@ export default function PostDetail() {
   };
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  // Social crawlers can't run our SPA JS, so they'd only see the generic
+  // index.html meta tags. Share via the og-post edge function instead — it
+  // returns per-post OG/Twitter meta and redirects real users to the SPA.
+  const socialShareUrl = (() => {
+    const supaUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    if (!supaUrl || !post?.slug) return shareUrl;
+    return `${supaUrl}/functions/v1/og-post?slug=${encodeURIComponent(post.slug)}&site=${encodeURIComponent(origin)}`;
+  })();
 
   const trackShare = async () => {
     if (post?.id) {
@@ -102,13 +111,13 @@ export default function PostDetail() {
       icon: Facebook,
       label: "ফেসবুক",
       color: "hover:bg-blue-500/10 hover:text-blue-600",
-      onClick: () => { trackShare(); window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank"); },
+      onClick: () => { trackShare(); window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(socialShareUrl)}`, "_blank"); },
     },
     {
       icon: Twitter,
       label: "টুইটার",
       color: "hover:bg-sky-500/10 hover:text-sky-500",
-      onClick: () => { trackShare(); window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(post?.title || "")}`, "_blank"); },
+      onClick: () => { trackShare(); window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(socialShareUrl)}&text=${encodeURIComponent(post?.title || "")}`, "_blank"); },
     },
     {
       icon: LinkIcon,

@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
   const upstream = await fetch(imageUrl, {
     headers: {
       "User-Agent": "Mozilla/5.0 GalachipaBlogSocialPreview/1.0",
-      Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      Accept: "image/jpeg,image/png,image/webp,image/*,*/*;q=0.8",
     },
   });
 

@@ -25,13 +25,20 @@ const decodeHtmlEntities = (s: string) =>
     .replace(/&gt;/g, ">");
 
 const extractFirstImage = (html: string) => {
-  const srcsetMatch = html.match(/<img[^>]+srcset=["']([^"']+)["'][^>]*>/i);
-  if (srcsetMatch?.[1]) {
-    const firstSrc = srcsetMatch[1].split(",")[0]?.trim().split(/\s+/)[0];
-    if (firstSrc) return firstSrc;
+  const candidates: string[] = [];
+  const imageTags = html.match(/<img[^>]*>/gi) ?? [];
+
+  for (const tag of imageTags) {
+    const srcset = tag.match(/srcset=["']([^"']+)["']/i)?.[1];
+    if (srcset) {
+      candidates.push(...srcset.split(",").map((item) => item.trim().split(/\s+/)[0]).filter(Boolean));
+    }
+
+    const src = tag.match(/src=["']([^"']+)["']/i)?.[1];
+    if (src) candidates.push(src);
   }
 
-  return html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i)?.[1] ?? "";
+  return candidates.find((src) => !/\.svg(?:[?#]|$)/i.test(src) && !/placeholder|avatar|logo/i.test(src)) ?? candidates[0] ?? "";
 };
 
 const normalizeImageUrl = (raw: string, siteOrigin: string) => {
@@ -41,6 +48,12 @@ const normalizeImageUrl = (raw: string, siteOrigin: string) => {
   if (/^https?:\/\//i.test(image)) return image;
   if (image.startsWith("/")) return `${siteOrigin.replace(/\/$/, "")}${image}`;
   return "";
+};
+
+const buildProxyImageUrl = (functionOrigin: string, slug: string, siteOrigin: string, version?: string) => {
+  const params = new URLSearchParams({ slug, site: siteOrigin });
+  if (version) params.set("v", version);
+  return `${functionOrigin}/functions/v1/og-image?${params.toString()}`;
 };
 
 Deno.serve(async (req) => {
@@ -64,6 +77,7 @@ Deno.serve(async (req) => {
     "https://galachipablog.lovable.app";
 
   const targetUrl = `${siteOrigin.replace(/\/$/, "")}/post/${encodeURIComponent(slug)}`;
+  const functionOrigin = url.origin;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -73,11 +87,12 @@ Deno.serve(async (req) => {
   let title = "গালাচিপা ব্লগ";
   let description = "বাংলা ব্লগ ও সংবাদ পোর্টাল";
   let image = "";
+  let updatedAt = "";
 
   if (slug) {
     const { data } = await supabase
       .from("posts")
-      .select("title, excerpt, content, featured_image")
+      .select("title, excerpt, content, featured_image, updated_at")
       .eq("slug", slug)
       .eq("status", "published")
       .maybeSingle();
@@ -85,8 +100,11 @@ Deno.serve(async (req) => {
       title = data.title || title;
       description = (data.excerpt || stripHtml(data.content || "").slice(0, 200) || description).slice(0, 300);
       image = normalizeImageUrl(data.featured_image || extractFirstImage(data.content || ""), siteOrigin);
+      updatedAt = data.updated_at || "";
     }
   }
+
+  const ogImage = image ? buildProxyImageUrl(functionOrigin, slug, siteOrigin, updatedAt) : "";
 
   const html = `<!DOCTYPE html>
 <html lang="bn" prefix="og: https://ogp.me/ns#">
@@ -102,16 +120,16 @@ Deno.serve(async (req) => {
 <meta property="og:title" content="${escapeHtml(title)}" />
 <meta property="og:description" content="${escapeHtml(description)}" />
 <meta property="og:url" content="${escapeHtml(targetUrl)}" />
-${image ? `<meta property="og:image" content="${escapeHtml(image)}" />
-<meta property="og:image:secure_url" content="${escapeHtml(image)}" />
+${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}" />
+<meta property="og:image:secure_url" content="${escapeHtml(ogImage)}" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content="${escapeHtml(title)}" />` : ""}
 
-<meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}" />
+<meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}" />
 <meta name="twitter:title" content="${escapeHtml(title)}" />
 <meta name="twitter:description" content="${escapeHtml(description)}" />
-${image ? `<meta name="twitter:image" content="${escapeHtml(image)}" />` : ""}
+${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : ""}
 
 <meta http-equiv="refresh" content="0; url=${escapeHtml(targetUrl)}" />
 <script>window.location.replace(${JSON.stringify(targetUrl)});</script>

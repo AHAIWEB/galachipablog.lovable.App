@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     "https://galachipablog.lovable.app";
 
   const targetUrl = `${siteOrigin.replace(/\/$/, "")}/post/${encodeURIComponent(slug)}`;
-  const functionOrigin = url.origin;
+  const functionOrigin = (Deno.env.get("SUPABASE_URL") || url.origin).replace(/^http:\/\//i, "https://");
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

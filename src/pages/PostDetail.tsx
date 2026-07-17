@@ -123,7 +123,7 @@ export default function PostDetail() {
       icon: LinkIcon,
       label: "লিংক কপি",
       color: "hover:bg-muted",
-      onClick: () => { trackShare(); navigator.clipboard.writeText(shareUrl); toast.success("লিংক কপি হয়েছে!"); },
+      onClick: () => { trackShare(); navigator.clipboard.writeText(socialShareUrl); toast.success("লিংক কপি হয়েছে!"); },
     },
   ];
 

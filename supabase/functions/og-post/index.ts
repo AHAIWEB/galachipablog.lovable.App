@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
   if (!slug || slug.length > 220) {
     return new Response(JSON.stringify({ error: "Invalid slug" }), {
       status: 400,
-      headers: { ...corsHeaders, "content-type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -124,8 +124,8 @@ ${image ? `<meta name="twitter:image" content="${escapeHtml(image)}" />` : ""}
   return new Response(html, {
     headers: {
       ...corsHeaders,
-      "content-type": "text/html; charset=utf-8",
-      "cache-control": "public, max-age=300",
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=300",
     },
   });
 });

@@ -16,6 +16,14 @@ const escapeHtml = (s: string) =>
 
 const stripHtml = (s: string) => s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
+const decodeHtmlEntities = (s: string) =>
+  s
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+
 const extractFirstImage = (html: string) => {
   const srcsetMatch = html.match(/<img[^>]+srcset=["']([^"']+)["'][^>]*>/i);
   if (srcsetMatch?.[1]) {
@@ -27,7 +35,7 @@ const extractFirstImage = (html: string) => {
 };
 
 const normalizeImageUrl = (raw: string, siteOrigin: string) => {
-  const image = raw.trim();
+  const image = decodeHtmlEntities(raw).trim();
   if (!image) return "";
   if (image.startsWith("//")) return `https:${image}`;
   if (/^https?:\/\//i.test(image)) return image;

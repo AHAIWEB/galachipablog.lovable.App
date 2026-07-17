@@ -8,28 +8,50 @@
 // URL: https://<project>.supabase.co/functions/v1/og-post?slug=<slug>
 // Optional: &site=https://your-site.com  (overrides Referer / origin)
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "*",
-};
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 const stripHtml = (s: string) => s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
+const extractFirstImage = (html: string) => {
+  const srcsetMatch = html.match(/<img[^>]+srcset=["']([^"']+)["'][^>]*>/i);
+  if (srcsetMatch?.[1]) {
+    const firstSrc = srcsetMatch[1].split(",")[0]?.trim().split(/\s+/)[0];
+    if (firstSrc) return firstSrc;
+  }
+
+  return html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i)?.[1] ?? "";
+};
+
+const normalizeImageUrl = (raw: string, siteOrigin: string) => {
+  const image = raw.trim();
+  if (!image) return "";
+  if (image.startsWith("//")) return `https:${image}`;
+  if (/^https?:\/\//i.test(image)) return image;
+  if (image.startsWith("/")) return `${siteOrigin.replace(/\/$/, "")}${image}`;
+  return "";
+};
+
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const url = new URL(req.url);
-  const slug = url.searchParams.get("slug") ?? url.pathname.split("/").filter(Boolean).pop() ?? "";
+  const slug = (url.searchParams.get("slug") ?? url.pathname.split("/").filter(Boolean).pop() ?? "").trim();
   const siteOverride = url.searchParams.get("site");
+
+  if (!slug || slug.length > 220) {
+    return new Response(JSON.stringify({ error: "Invalid slug" }), {
+      status: 400,
+      headers: { ...corsHeaders, "content-type": "application/json" },
+    });
+  }
 
   // Derive the public site origin to redirect users to.
   const siteOrigin =
-    siteOverride ||
+    (siteOverride && /^https?:\/\//i.test(siteOverride) ? siteOverride : null) ||
     (req.headers.get("referer") ? new URL(req.headers.get("referer")!).origin : null) ||
     "https://galachipablog.lovable.app";
 
@@ -54,7 +76,7 @@ Deno.serve(async (req) => {
     if (data) {
       title = data.title || title;
       description = (data.excerpt || stripHtml(data.content || "").slice(0, 200) || description).slice(0, 300);
-      image = data.featured_image || "";
+      image = normalizeImageUrl(data.featured_image || extractFirstImage(data.content || ""), siteOrigin);
     }
   }
 
@@ -73,8 +95,10 @@ Deno.serve(async (req) => {
 <meta property="og:description" content="${escapeHtml(description)}" />
 <meta property="og:url" content="${escapeHtml(targetUrl)}" />
 ${image ? `<meta property="og:image" content="${escapeHtml(image)}" />
+<meta property="og:image:secure_url" content="${escapeHtml(image)}" />
 <meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />` : ""}
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="${escapeHtml(title)}" />` : ""}
 
 <meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}" />
 <meta name="twitter:title" content="${escapeHtml(title)}" />

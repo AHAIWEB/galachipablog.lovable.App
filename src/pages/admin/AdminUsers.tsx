@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Shield, ShieldCheck, Star, UserCheck, Users } from "lucide-react";
+import { Search, Shield, ShieldCheck, Star, UserCheck, Users, type LucideIcon } from "lucide-react";
 
 type AppRole = "admin" | "moderator" | "user";
 type AdminUser = {
@@ -220,7 +220,7 @@ export default function AdminUsers() {
   );
 }
 
-function StatCard({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: number }) {
+function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
       <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">

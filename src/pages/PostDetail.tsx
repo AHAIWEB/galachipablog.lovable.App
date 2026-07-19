@@ -94,10 +94,9 @@ export default function PostDetail() {
   // index.html meta tags. Share via the og-post edge function instead — it
   // returns per-post OG/Twitter meta and redirects real users to the SPA.
   const socialShareUrl = (() => {
-    const supaUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    if (!supaUrl || !post?.slug) return shareUrl;
-    return `${supaUrl}/functions/v1/og-post?slug=${encodeURIComponent(post.slug)}&site=${encodeURIComponent(origin)}`;
+    if (!origin || !post?.slug) return shareUrl;
+    return `${origin}/share/${encodeURIComponent(post.slug)}`;
   })();
 
   const trackShare = async () => {

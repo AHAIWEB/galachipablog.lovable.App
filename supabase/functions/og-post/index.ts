@@ -17,12 +17,20 @@ const escapeHtml = (s: string) =>
 const stripHtml = (s: string) => s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
 const decodeHtmlEntities = (s: string) =>
-  s
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+  Array.from({ length: 3 }).reduce((value) =>
+    value
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">"), s);
+
+const isUsableSocialImage = (src: string) =>
+  src &&
+  !src.startsWith("data:") &&
+  !/\.svg(?:[?#]|$)/i.test(src) &&
+  !/\.avif(?:[?#]|$)/i.test(src) &&
+  !/placeholder|avatar|logo/i.test(src);
 
 const extractFirstImage = (html: string) => {
   const candidates: string[] = [];
@@ -38,7 +46,7 @@ const extractFirstImage = (html: string) => {
     if (src) candidates.push(src);
   }
 
-  return candidates.find((src) => !/\.svg(?:[?#]|$)/i.test(src) && !/placeholder|avatar|logo/i.test(src)) ?? candidates[0] ?? "";
+  return candidates.find(isUsableSocialImage) ?? candidates.find((src) => !/\.svg(?:[?#]|$)/i.test(src)) ?? candidates[0] ?? "";
 };
 
 const normalizeImageUrl = (raw: string, siteOrigin: string) => {
@@ -50,10 +58,11 @@ const normalizeImageUrl = (raw: string, siteOrigin: string) => {
   return "";
 };
 
-const buildProxyImageUrl = (functionOrigin: string, slug: string, siteOrigin: string, version?: string) => {
-  const params = new URLSearchParams({ slug, site: siteOrigin });
+const buildProxyImageUrl = (siteOrigin: string, slug: string, version?: string) => {
+  const params = new URLSearchParams();
   if (version) params.set("v", version);
-  return `${functionOrigin}/functions/v1/og-image?${params.toString()}`;
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return `${siteOrigin.replace(/\/$/, "")}/share-image/${encodeURIComponent(slug)}${suffix}`;
 };
 
 Deno.serve(async (req) => {
@@ -77,7 +86,6 @@ Deno.serve(async (req) => {
     "https://galachipablog.lovable.app";
 
   const targetUrl = `${siteOrigin.replace(/\/$/, "")}/post/${encodeURIComponent(slug)}`;
-  const functionOrigin = (Deno.env.get("SUPABASE_URL") || url.origin).replace(/^http:\/\//i, "https://");
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -88,6 +96,15 @@ Deno.serve(async (req) => {
   let description = "বাংলা ব্লগ ও সংবাদ পোর্টাল";
   let image = "";
   let updatedAt = "";
+
+  const { data: settings } = await supabase
+    .from("site_settings")
+    .select("key, value")
+    .in("key", ["site_name", "site_description", "og_image_url", "default_post_image", "logo_url"]);
+  const settingMap = Object.fromEntries((settings ?? []).map((item) => [item.key, item.value ?? ""]));
+
+  title = settingMap.site_name || title;
+  description = settingMap.site_description || description;
 
   if (slug) {
     const { data } = await supabase
@@ -104,7 +121,11 @@ Deno.serve(async (req) => {
     }
   }
 
-  const ogImage = image ? buildProxyImageUrl(functionOrigin, slug, siteOrigin, updatedAt) : "";
+  if (!image) {
+    image = normalizeImageUrl(settingMap.og_image_url || settingMap.default_post_image || settingMap.logo_url || "", siteOrigin);
+  }
+
+  const ogImage = image ? buildProxyImageUrl(siteOrigin, slug, updatedAt) : "";
 
   const html = `<!DOCTYPE html>
 <html lang="bn" prefix="og: https://ogp.me/ns#">

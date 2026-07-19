@@ -278,7 +278,7 @@ export default function SiteHeader() {
   const logoUrl = siteSettings?.logo_url?.trim();
   const siteName = siteSettings?.site_name?.trim() || "গলাচিপা ব্লগ";
   const logoWidth = Math.min(280, Math.max(48, Number(siteSettings?.logo_width) || 160));
-  const logoHeight = Math.min(90, Math.max(28, Number(siteSettings?.logo_height) || 44));
+  const logoHeight = Math.min(48, Math.max(28, Number(siteSettings?.logo_height) || 44));
 
   const cancelClose = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);

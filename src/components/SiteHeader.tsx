@@ -261,6 +261,25 @@ export default function SiteHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const { data: siteSettings } = useQuery({
+    queryKey: ["site-header-settings"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("site_settings")
+        .select("key, value")
+        .in("key", ["site_name", "site_tagline", "logo_url", "logo_width", "logo_height"]);
+      const map: Record<string, string> = {};
+      data?.forEach((item) => { map[item.key] = item.value ?? ""; });
+      return map;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const logoUrl = siteSettings?.logo_url?.trim();
+  const siteName = siteSettings?.site_name?.trim() || "গলাচিপা ব্লগ";
+  const logoWidth = Math.min(280, Math.max(48, Number(siteSettings?.logo_width) || 160));
+  const logoHeight = Math.min(48, Math.max(28, Number(siteSettings?.logo_height) || 44));
+
   const cancelClose = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
   };
@@ -282,8 +301,18 @@ export default function SiteHeader() {
     <header className="relative">
       <div className="bg-header-bg text-header-foreground">
         <div className="container mx-auto flex items-center justify-between h-14 px-4">
-          <a href="/" className="font-heading font-bold text-xl tracking-tight shrink-0">
-            গলাচিপা ব্লগ
+          <a href="/" className="font-heading font-bold text-xl tracking-tight shrink-0 flex items-center min-w-0">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={siteName}
+                className="object-contain"
+                style={{ width: logoWidth, height: logoHeight, maxWidth: "45vw" }}
+                onError={(event) => { (event.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              siteName
+            )}
           </a>
           <button
             onClick={() => setSearchOpen(true)}

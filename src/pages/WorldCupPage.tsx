@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
-import { Trophy, Calendar, MapPin, Users, Goal, BarChart3, Newspaper, Star, Clock, RefreshCw, Search, Radio } from "lucide-react";
+import { Trophy, Calendar, MapPin, Users, Goal, BarChart3, Newspaper, Star, Clock, RefreshCw, Search, Radio, Download } from "lucide-react";
 
 const todayMatch = {
   teamA: { name: "আর্জেন্টিনা", flag: "🇦🇷", prob: 58 },
@@ -145,6 +145,35 @@ function TopScorersLeaderboard() {
 
   const max = Math.max(1, ...rows.map(r => r.displayGoals));
 
+  const exportCsv = () => {
+    const headers = ["Rank", "Player", "Country", "Group", "Goals", "Assists", "Matches", "Matchday 1", "Matchday 2", "Matchday 3"];
+    const escapeCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+    const csv = [
+      headers.map(escapeCell).join(","),
+      ...rows.map((p, index) => [
+        index + 1,
+        p.name,
+        p.country,
+        p.group,
+        p.displayGoals,
+        p.assists,
+        p.matches,
+        p.perMatchday[0] ?? 0,
+        p.perMatchday[1] ?? 0,
+        p.perMatchday[2] ?? 0,
+      ].map(escapeCell).join(",")),
+    ].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `world-cup-top-scorers-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Section icon={Goal} title="সর্বোচ্চ গোলদাতা — লিডারবোর্ড" accent="secondary">
       <Card className="p-5">
@@ -157,6 +186,9 @@ function TopScorersLeaderboard() {
             সর্বশেষ আপডেট: {updatedAt.toLocaleTimeString("bn-BD")}
           </span>
           <div className="ml-auto flex items-center gap-1">
+            <Button size="sm" variant="outline" onClick={exportCsv} disabled={rows.length === 0} className="h-7 px-2 text-xs gap-1">
+              <Download className="h-3 w-3" /> CSV
+            </Button>
             <Button size="sm" variant="outline" onClick={refresh} className="h-7 px-2 text-xs gap-1">
               <RefreshCw className="h-3 w-3" /> রিফ্রেশ
             </Button>

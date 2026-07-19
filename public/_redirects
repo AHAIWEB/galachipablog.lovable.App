@@ -1,3 +1,4 @@
 /rss.xml  https://fhtyknfxfafzncjdnana.supabase.co/functions/v1/rss-feed  200
 /feed     https://fhtyknfxfafzncjdnana.supabase.co/functions/v1/rss-feed  200
+/share/:slug  https://fhtyknfxfafzncjdnana.supabase.co/functions/v1/og-post?slug=:slug&site=https://galachipablog.lovable.app  200
 /*    /index.html   200

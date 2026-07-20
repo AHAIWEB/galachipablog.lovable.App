@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import SiteCustomizer from "@/components/SiteCustomizer";
 import Index from "./pages/Index";
 import PostDetail from "./pages/PostDetail";
 import CategoryPage from "./pages/CategoryPage";
@@ -44,6 +45,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <SiteCustomizer />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />

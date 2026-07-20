@@ -225,6 +225,7 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
     let content = article.content || '';
     if (content) {
       const noisePatterns = [
+        // Site chrome / meta
         /সম্পাদক\s*[:：][^\n।]{0,200}/gi,
         /প্রকাশিত\s*[:：][^\n।]{0,200}/gi,
         /আপডেট\s*[:：][^\n।]{0,200}/gi,
@@ -234,11 +235,28 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
         /Copyright\s*©[^\n।]{0,200}/gi,
         /All\s+rights?\s+reserved[^\n।]{0,200}/gi,
         /(?:Published|Updated|Editor)\s*[:：][^\n।]{0,200}/gi,
-        /(?:শেয়ার|Share)\s*(?:করুন|this)[^\n।]{0,100}/gi,
+        // Menu / navigation words (Bengali common site nav)
+        /(?:হোম|প্রচ্ছদ|প্রথম\s*পাতা|জাতীয়|আন্তর্জাতিক|খেলা|বিনোদন|অর্থনীতি|শিক্ষা|স্বাস্থ্য|প্রযুক্তি|লাইফস্টাইল|মতামত|ধর্ম|রাজনীতি|সারাদেশ|যোগাযোগ|আমাদের\s*সম্পর্কে|আর্কাইভ|সাইটম্যাপ|লগইন|নিবন্ধন)(?:\s*[\|·»›→\-])/gi,
+        /(?:Home|About|Contact|Login|Register|Sign\s*in|Sign\s*up|Menu|Search)(?:\s*[\|·»›→\-])/gi,
+        // Related posts / tags
+        /(?:সম্পর্কিত\s*(?:খবর|পোস্ট|সংবাদ|নিবন্ধ)|আরও\s*পড়ুন|আরো\s*পড়ুন|আরও\s*দেখুন|আরো\s*খবর|এই\s*বিভাগের\s*আরও)[^।]{0,500}/gi,
+        /(?:Related\s*(?:Posts|Articles|News|Stories)|You\s*(?:may|might)\s*(?:also\s*)?like|Read\s*(?:more|also|next))[^.]{0,500}/gi,
+        /(?:ট্যাগ|Tags|Tagged|Keywords)\s*[:：][^\n।]{0,300}/gi,
+        // Comments / social share
+        /(?:মন্তব্য\s*করুন|আপনার\s*মতামত|কমেন্ট|Comments?|Leave\s+a\s+(?:Reply|Comment)|Post\s+Comment)[^।]{0,500}/gi,
+        /(?:শেয়ার|Share)\s*(?:করুন|this|on)?\s*[:：]?\s*(?:Facebook|Twitter|WhatsApp|Telegram|LinkedIn|ফেসবুক|টুইটার|হোয়াটসঅ্যাপ|টেলিগ্রাম)?[^।]{0,200}/gi,
+        /(?:Like|Tweet|Pin\s*it|Share\s*to)[^।]{0,80}/gi,
+        // Subscribe / newsletter
+        /(?:সাবস্ক্রাইব|নিউজলেটার|Subscribe|Newsletter|Sign\s*up\s*for)[^।]{0,300}/gi,
+        // Ads
+        /(?:বিজ্ঞাপন|Advertisement|Sponsored|ADVERTISEMENT|Ad\s*Block)[^।]{0,200}/gi,
+        // Footer boilerplate
+        /(?:গোপনীয়তা\s*নীতি|শর্তাবলী|Privacy\s*Policy|Terms\s*(?:of|&)\s*(?:Use|Service|Conditions))[^।]{0,200}/gi,
         /(?:Read more|আরো পড়ুন|আরও পড়ুন)\s*[:：>→]*[^\n।]{0,100}/gi,
       ];
-      for (const re of noisePatterns) content = content.replace(re, '');
-      content = content.replace(/\s+/g, ' ').trim();
+      for (const re of noisePatterns) content = content.replace(re, ' ');
+      // Collapse repeated pipes/bullets/whitespace
+      content = content.replace(/[\|·»›→]{2,}/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
     const slug = title.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 200) + '-' + Date.now();

@@ -272,8 +272,9 @@ export default function PostDetail() {
                   FORBID_TAGS: ["style", "script", "iframe", "form", "input", "button", "object", "embed"],
                   FORBID_ATTR: ["style", "onerror", "onload", "onclick", "onmouseover"],
                 });
-
+                return (
                   <div
+
                     className="text-foreground/90 leading-relaxed text-base md:text-lg font-body wiki-content"
                     dangerouslySetInnerHTML={{ __html: cleaned }}
                   />

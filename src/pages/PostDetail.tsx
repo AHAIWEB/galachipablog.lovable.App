@@ -267,7 +267,12 @@ export default function PostDetail() {
                   .replace(/<meta[^>]*>/gi, "")
                   .replace(/<base[^>]*>/gi, "")
                   .replace(/<title[\s\S]*?<\/title>/gi, "");
-                return (
+                cleaned = DOMPurify.sanitize(cleaned, {
+                  USE_PROFILES: { html: true },
+                  FORBID_TAGS: ["style", "script", "iframe", "form", "input", "button", "object", "embed"],
+                  FORBID_ATTR: ["style", "onerror", "onload", "onclick", "onmouseover"],
+                });
+
                   <div
                     className="text-foreground/90 leading-relaxed text-base md:text-lg font-body wiki-content"
                     dangerouslySetInnerHTML={{ __html: cleaned }}

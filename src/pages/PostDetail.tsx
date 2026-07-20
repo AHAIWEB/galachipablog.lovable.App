@@ -8,6 +8,8 @@ import { Calendar, Eye, Share2, Facebook, Twitter, Link as LinkIcon, ArrowLeft, 
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
+import DOMPurify from "dompurify";
+
 
 export default function PostDetail() {
   const { user } = useAuth();

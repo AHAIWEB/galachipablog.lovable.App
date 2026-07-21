@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, Users, CreditCard, Eye, Layout, Link2, Rss, Archive, ExternalLink, Download, Code2 } from "lucide-react";
+import SeoStatusCard from "@/components/admin/SeoStatusCard";
 
 export default function AdminDashboard() {
   const { data: postCount } = useQuery({
@@ -108,6 +109,8 @@ export default function AdminDashboard() {
   return (
     <div>
       <h1 className="font-heading font-bold text-2xl mb-6">📊 ড্যাশবোর্ড</h1>
+
+      <SeoStatusCard />
 
       {/* Blogger Theme Download Card */}
       <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl p-5 mb-6 shadow-lg">

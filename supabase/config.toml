@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.og-post]
 verify_jwt = false
+
+[functions.seo-reindex]
+verify_jwt = false

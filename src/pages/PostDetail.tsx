@@ -73,6 +73,44 @@ export default function PostDetail() {
       .then(({ data }) => setIsBookmarked(!!data));
   }, [user, post?.id]);
 
+  // Inject BlogPosting JSON-LD + per-page canonical / og so Google & crawlers see it
+  useEffect(() => {
+    if (!post) return;
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      headline: post.title,
+      description: post.excerpt || undefined,
+      image: post.featured_image ? [post.featured_image] : undefined,
+      datePublished: post.created_at,
+      dateModified: (post as any).updated_at || post.created_at,
+      author: { "@type": "Organization", name: "গলাচিপা ব্লগ" },
+      publisher: {
+        "@type": "Organization",
+        name: "গলাচিপা ব্লগ",
+        logo: { "@type": "ImageObject", url: "https://galachipablog.lovable.app/placeholder.svg" },
+      },
+      mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    };
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.dataset.postSchema = "true";
+    script.text = JSON.stringify(jsonLd);
+    document.head.appendChild(script);
+
+    // canonical
+    let canon = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canon) { canon = document.createElement("link"); canon.rel = "canonical"; document.head.appendChild(canon); }
+    const prevCanon = canon.href;
+    canon.href = url;
+
+    return () => {
+      script.remove();
+      if (canon) canon.href = prevCanon;
+    };
+  }, [post]);
+
   const toggleBookmark = async () => {
     if (!user) { toast.error("বুকমার্ক করতে লগইন করুন"); return; }
     if (!post?.id || bookmarkLoading) return;
@@ -267,6 +305,24 @@ export default function PostDetail() {
                   .replace(/<meta[^>]*>/gi, "")
                   .replace(/<base[^>]*>/gi, "")
                   .replace(/<title[\s\S]*?<\/title>/gi, "");
+
+                // Strip common site-chrome noise blocks (nav / footer / share bars / related)
+                cleaned = cleaned
+                  .replace(/<(nav|header|footer|aside|form)[\s\S]*?<\/\1>/gi, "")
+                  .replace(/<(?:div|section)[^>]*class=["'][^"']*(menu|nav|sidebar|footer|share|social|related|comment|breadcrumb|widget|toolbar)[^"']*["'][\s\S]*?<\/(?:div|section)>/gi, "")
+                  .replace(/<(?:div|section)[^>]*id=["'][^"']*(menu|nav|sidebar|footer|share|social|related|comment|breadcrumb|widget|toolbar)[^"']*["'][\s\S]*?<\/(?:div|section)>/gi, "");
+
+                // Resolve relative/protocol-relative image URLs against source_url or Wikipedia
+                const sourceUrl = (post as any).source_url as string | undefined;
+                let base: string | null = null;
+                try { if (sourceUrl) base = new URL(sourceUrl).origin; } catch { /* ignore */ }
+                cleaned = cleaned.replace(/(<img[^>]+src=["'])(\/\/[^"']+)/gi, "$1https:$2");
+                if (base) {
+                  cleaned = cleaned.replace(/(<img[^>]+src=["'])(\/[^\/][^"']*)/gi, `$1${base}$2`);
+                }
+                // Bengali/Wikipedia specific: strip infobox junk headers like "লেখা"
+                cleaned = cleaned.replace(/<table[^>]*class=["'][^"']*(navbox|metadata|ambox|infobox-footer|reflist)[^"']*["'][\s\S]*?<\/table>/gi, "");
+
                 cleaned = DOMPurify.sanitize(cleaned, {
                   USE_PROFILES: { html: true },
                   FORBID_TAGS: ["style", "script", "iframe", "form", "input", "button", "object", "embed"],
@@ -274,7 +330,6 @@ export default function PostDetail() {
                 });
                 return (
                   <div
-
                     className="text-foreground/90 leading-relaxed text-base md:text-lg font-body wiki-content"
                     dangerouslySetInnerHTML={{ __html: cleaned }}
                   />

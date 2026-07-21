@@ -267,6 +267,24 @@ export default function PostDetail() {
                   .replace(/<meta[^>]*>/gi, "")
                   .replace(/<base[^>]*>/gi, "")
                   .replace(/<title[\s\S]*?<\/title>/gi, "");
+
+                // Strip common site-chrome noise blocks (nav / footer / share bars / related)
+                cleaned = cleaned
+                  .replace(/<(nav|header|footer|aside|form)[\s\S]*?<\/\1>/gi, "")
+                  .replace(/<(?:div|section)[^>]*class=["'][^"']*(menu|nav|sidebar|footer|share|social|related|comment|breadcrumb|widget|toolbar)[^"']*["'][\s\S]*?<\/(?:div|section)>/gi, "")
+                  .replace(/<(?:div|section)[^>]*id=["'][^"']*(menu|nav|sidebar|footer|share|social|related|comment|breadcrumb|widget|toolbar)[^"']*["'][\s\S]*?<\/(?:div|section)>/gi, "");
+
+                // Resolve relative/protocol-relative image URLs against source_url or Wikipedia
+                const sourceUrl = (post as any).source_url as string | undefined;
+                let base: string | null = null;
+                try { if (sourceUrl) base = new URL(sourceUrl).origin; } catch { /* ignore */ }
+                cleaned = cleaned.replace(/(<img[^>]+src=["'])(\/\/[^"']+)/gi, "$1https:$2");
+                if (base) {
+                  cleaned = cleaned.replace(/(<img[^>]+src=["'])(\/[^\/][^"']*)/gi, `$1${base}$2`);
+                }
+                // Bengali/Wikipedia specific: strip infobox junk headers like "লেখা"
+                cleaned = cleaned.replace(/<table[^>]*class=["'][^"']*(navbox|metadata|ambox|infobox-footer|reflist)[^"']*["'][\s\S]*?<\/table>/gi, "");
+
                 cleaned = DOMPurify.sanitize(cleaned, {
                   USE_PROFILES: { html: true },
                   FORBID_TAGS: ["style", "script", "iframe", "form", "input", "button", "object", "embed"],
@@ -274,7 +292,6 @@ export default function PostDetail() {
                 });
                 return (
                   <div
-
                     className="text-foreground/90 leading-relaxed text-base md:text-lg font-body wiki-content"
                     dangerouslySetInnerHTML={{ __html: cleaned }}
                   />

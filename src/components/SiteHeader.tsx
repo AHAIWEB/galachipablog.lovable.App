@@ -301,7 +301,7 @@ export default function SiteHeader() {
   return (
     <header className="relative">
       <div className="bg-header-bg text-header-foreground">
-        <div className="container mx-auto flex items-center justify-between h-14 px-4">
+        <div className="container mx-auto flex items-center justify-between min-h-14 py-1 px-4">
           <a href="/" className="font-heading font-bold text-xl tracking-tight shrink-0 flex items-center min-w-0">
             {logoUrl ? (
               <img

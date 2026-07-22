@@ -387,6 +387,11 @@ export default function AdminPosts() {
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">
                 <Copy className="h-4 w-4" /> HTML কপি ({selectedIds.size})
               </button>
+              <button onClick={bulkReindex} disabled={inspecting}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium disabled:opacity-50" title="Google-এ reindex রিকোয়েস্ট + URL Inspection">
+                {inspecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {inspecting ? "চেক হচ্ছে..." : `Reindex (${selectedIds.size})`}
+              </button>
               <button onClick={bulkPublishBlogger} disabled={isBulkPublishing}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium disabled:opacity-50">
                 <Globe className="h-4 w-4" />

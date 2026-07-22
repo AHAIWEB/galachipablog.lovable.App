@@ -15,6 +15,8 @@ export default function AdminPosts() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [inspecting, setInspecting] = useState(false);
+  const [inspectResults, setInspectResults] = useState<Record<string, { verdict?: string; coverageState?: string; lastCrawlTime?: string; canonicalMatch?: boolean; error?: string }>>({});
 
   // Multi-image state
   const [postImages, setPostImages] = useState<{ id?: string; image_url: string; caption: string; file?: File }[]>([]);

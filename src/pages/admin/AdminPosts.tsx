@@ -124,10 +124,20 @@ export default function AdminPosts() {
         }
       }
       setUploading(false);
+      return { postId, slug: payload.slug, status: payload.status };
     },
-    onSuccess: () => {
+    onSuccess: async (res) => {
       queryClient.invalidateQueries({ queryKey: ["admin-posts"] });
       toast.success(editing ? "আপডেট হয়েছে" : "পোস্ট তৈরি হয়েছে");
+      // Auto reindex published posts (sitemap ping + GSC submit)
+      if (res?.status === "published" && res.slug) {
+        const url = `${window.location.origin}/post/${res.slug}`;
+        supabase.functions.invoke("seo-reindex", { body: { urls: [url] } })
+          .then(({ error }) => {
+            if (!error) toast.success("Google-এ reindex রিকোয়েস্ট পাঠানো হয়েছে");
+          })
+          .catch(() => {});
+      }
       resetForm();
     },
     onError: (err: any) => { setUploading(false); toast.error(err.message); },

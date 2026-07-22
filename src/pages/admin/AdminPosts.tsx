@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image, Star, Copy, Rss } from "lucide-react";
+import { Plus, Pencil, Trash2, Globe, Share2, Search, CheckSquare, Square, Upload, X, GripVertical, Image, Star, Copy, Rss, RefreshCw, Loader2 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Post = Tables<"posts">;
@@ -15,6 +15,8 @@ export default function AdminPosts() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [inspecting, setInspecting] = useState(false);
+  const [inspectResults, setInspectResults] = useState<Record<string, { verdict?: string; coverageState?: string; lastCrawlTime?: string; canonicalMatch?: boolean; error?: string }>>({});
 
   // Multi-image state
   const [postImages, setPostImages] = useState<{ id?: string; image_url: string; caption: string; file?: File }[]>([]);
@@ -122,10 +124,20 @@ export default function AdminPosts() {
         }
       }
       setUploading(false);
+      return { postId, slug: payload.slug, status: payload.status };
     },
-    onSuccess: () => {
+    onSuccess: async (res) => {
       queryClient.invalidateQueries({ queryKey: ["admin-posts"] });
       toast.success(editing ? "আপডেট হয়েছে" : "পোস্ট তৈরি হয়েছে");
+      // Auto reindex published posts (sitemap ping + GSC submit)
+      if (res?.status === "published" && res.slug) {
+        const url = `${window.location.origin}/post/${res.slug}`;
+        supabase.functions.invoke("seo-reindex", { body: { urls: [url] } })
+          .then(({ error }) => {
+            if (!error) toast.success("Google-এ reindex রিকোয়েস্ট পাঠানো হয়েছে");
+          })
+          .catch(() => {});
+      }
       resetForm();
     },
     onError: (err: any) => { setUploading(false); toast.error(err.message); },
@@ -170,6 +182,59 @@ export default function AdminPosts() {
     setIsBulkPublishing(false);
     setSelectedIds(new Set());
     toast.success(`Blogger: ${success} সফল, ${fail} ব্যর্থ`);
+  };
+
+  const bulkReindex = async () => {
+    const selected = (posts ?? []).filter(p => selectedIds.has(p.id) && p.status === "published");
+    if (selected.length === 0) return toast.error("প্রকাশিত পোস্ট সিলেক্ট করুন");
+    setInspecting(true);
+    const urls = selected.map(p => `${window.location.origin}/post/${p.slug}`);
+    try {
+      const { data, error } = await supabase.functions.invoke("seo-reindex", { body: { urls } });
+      if (error) throw error;
+      const map: typeof inspectResults = { ...inspectResults };
+      (data?.inspections || []).forEach((ins: any) => {
+        const slug = ins.url?.split("/post/")[1];
+        const post = selected.find(p => p.slug === slug);
+        if (post) map[post.id] = {
+          verdict: ins.verdict,
+          coverageState: ins.coverageState,
+          lastCrawlTime: ins.lastCrawlTime,
+          canonicalMatch: ins.canonicalMatch,
+          error: ins.error,
+        };
+      });
+      setInspectResults(map);
+      toast.success(`${selected.length}টি URL reindex রিকোয়েস্ট পাঠানো হয়েছে`);
+    } catch (e: any) {
+      toast.error(e.message || "Reindex ব্যর্থ");
+    }
+    setInspecting(false);
+  };
+
+  const inspectSingle = async (post: Post) => {
+    if (post.status !== "published") return toast.error("শুধু প্রকাশিত পোস্ট ইনস্পেক্ট করা যায়");
+    const url = `${window.location.origin}/post/${post.slug}`;
+    setInspectResults(prev => ({ ...prev, [post.id]: { verdict: "checking..." } }));
+    try {
+      const { data, error } = await supabase.functions.invoke("seo-reindex", { body: { urls: [url] } });
+      if (error) throw error;
+      const ins = data?.inspections?.[0];
+      setInspectResults(prev => ({
+        ...prev,
+        [post.id]: {
+          verdict: ins?.verdict,
+          coverageState: ins?.coverageState,
+          lastCrawlTime: ins?.lastCrawlTime,
+          canonicalMatch: ins?.canonicalMatch,
+          error: ins?.error,
+        },
+      }));
+      toast.success("ইনস্পেকশন সম্পন্ন");
+    } catch (e: any) {
+      toast.error(e.message || "ইনস্পেকশন ব্যর্থ");
+      setInspectResults(prev => ({ ...prev, [post.id]: { error: e.message } }));
+    }
   };
 
   const sharePost = async (post: Post) => {
@@ -321,6 +386,11 @@ export default function AdminPosts() {
               <button onClick={bulkCopyHtml}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">
                 <Copy className="h-4 w-4" /> HTML কপি ({selectedIds.size})
+              </button>
+              <button onClick={bulkReindex} disabled={inspecting}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium disabled:opacity-50" title="Google-এ reindex রিকোয়েস্ট + URL Inspection">
+                {inspecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                {inspecting ? "চেক হচ্ছে..." : `Reindex (${selectedIds.size})`}
               </button>
               <button onClick={bulkPublishBlogger} disabled={isBulkPublishing}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium disabled:opacity-50">
@@ -563,6 +633,23 @@ export default function AdminPosts() {
                      {(post as any).categories?.name && (
                        <span className="text-[10px] text-muted-foreground">{(post as any).categories.name}</span>
                      )}
+                     {inspectResults[post.id] && (() => {
+                       const r = inspectResults[post.id];
+                       const ok = r.verdict === "PASS" || r.coverageState?.startsWith("Submitted and indexed");
+                       const fail = r.error || r.verdict === "FAIL" || (r.coverageState && !ok);
+                       const cls = ok ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                         : fail ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                         : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300";
+                       const label = r.error ? `⚠ ${r.error.slice(0, 24)}`
+                         : r.verdict === "checking..." ? "⏳ চেক..."
+                         : `${ok ? "✅" : fail ? "❌" : "⚠"} ${r.coverageState || r.verdict || "unknown"}`;
+                       const title = [
+                         r.coverageState && `Coverage: ${r.coverageState}`,
+                         r.lastCrawlTime && `Last crawl: ${new Date(r.lastCrawlTime).toLocaleString("bn-BD")}`,
+                         r.canonicalMatch !== undefined && `Canonical match: ${r.canonicalMatch ? "yes" : "no"}`,
+                       ].filter(Boolean).join(" • ");
+                       return <span title={title} className={`text-[10px] px-1.5 py-0.5 rounded-full ${cls}`}>{label}</span>;
+                     })()}
                    </div>
                  </div>
                  <div className="flex gap-0.5 shrink-0">
@@ -573,6 +660,9 @@ export default function AdminPosts() {
                    }} className={`p-1.5 hover:bg-muted rounded ${post.is_featured ? "text-amber-500" : ""}`} title="ফিচার্ড">
                      <Star className={`h-3.5 w-3.5 ${post.is_featured ? "fill-current" : ""}`} />
                    </button>
+                   {post.status === "published" && (
+                     <button onClick={() => inspectSingle(post)} className="p-1.5 hover:bg-muted rounded text-green-600" title="Google URL Inspection + Reindex"><RefreshCw className="h-3.5 w-3.5" /></button>
+                   )}
                    <button onClick={() => sharePost(post)} className="p-1.5 hover:bg-muted rounded" title="শেয়ার"><Share2 className="h-3.5 w-3.5" /></button>
                    <button onClick={() => copyAsBloggerHtml(post)} className="p-1.5 hover:bg-muted rounded text-blue-600" title="Blogger HTML কপি (manual paste)"><Copy className="h-3.5 w-3.5" /></button>
                    <button onClick={() => publishBlogger(post)} className="p-1.5 hover:bg-muted rounded" title="Blogger API"><Globe className="h-3.5 w-3.5" /></button>

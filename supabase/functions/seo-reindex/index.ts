@@ -31,9 +31,11 @@ Deno.serve(async (req) => {
     const { data: role } = await supabase.from("user_roles").select("role").eq("user_id", uid).eq("role", "admin").maybeSingle();
     if (!role) return json({ error: "Admin required" }, 403);
 
-    const { url } = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({}));
+    const url: string | undefined = body?.url;
+    const urls: string[] = Array.isArray(body?.urls) ? body.urls.filter((u: any) => typeof u === "string") : [];
 
-    // --- Ping public sitemap endpoints (Bing still honors this; Google deprecated but harmless)
+    // --- Ping public sitemap endpoints
     const pingResults: Record<string, number | string> = {};
     for (const endpoint of [
       `https://www.google.com/ping?sitemap=${encodeURIComponent(SITEMAP)}`,
@@ -47,11 +49,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // --- Optional: URL inspection & sitemap resubmit via Search Console connector
+    // --- Google Search Console: sitemap resubmit + per-URL inspection
     const gscKey = Deno.env.get("GOOGLE_SEARCH_CONSOLE_API_KEY");
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     let inspection: unknown = null;
     let sitemap: unknown = null;
+    const inspections: Array<{ url: string; verdict?: string; coverageState?: string; lastCrawlTime?: string; userCanonical?: string; googleCanonical?: string; canonicalMatch?: boolean; error?: string; status?: number }> = [];
+
     if (gscKey && lovableKey) {
       const gwHeaders = {
         Authorization: `Bearer ${lovableKey}`,
@@ -67,20 +71,37 @@ Deno.serve(async (req) => {
       } catch (e) {
         sitemap = { error: (e as Error).message };
       }
-      if (url) {
+
+      const inspectOne = async (u: string) => {
         try {
           const insRes = await fetch(
             `https://connector-gateway.lovable.dev/google_search_console/v1/urlInspection/index:inspect`,
-            { method: "POST", headers: gwHeaders, body: JSON.stringify({ inspectionUrl: url, siteUrl: SITE + "/" }) },
+            { method: "POST", headers: gwHeaders, body: JSON.stringify({ inspectionUrl: u, siteUrl: SITE + "/" }) },
           );
-          inspection = { status: insRes.status, body: await insRes.json().catch(() => null) };
+          const j: any = await insRes.json().catch(() => null);
+          const idx = j?.inspectionResult?.indexStatusResult;
+          return {
+            url: u,
+            status: insRes.status,
+            verdict: idx?.verdict,
+            coverageState: idx?.coverageState,
+            lastCrawlTime: idx?.lastCrawlTime,
+            userCanonical: idx?.userCanonical,
+            googleCanonical: idx?.googleCanonical,
+            canonicalMatch: idx?.userCanonical && idx?.googleCanonical ? idx.userCanonical === idx.googleCanonical : undefined,
+          };
         } catch (e) {
-          inspection = { error: (e as Error).message };
+          return { url: u, error: (e as Error).message };
         }
-      }
+      };
+
+      const all = [...(url ? [url] : []), ...urls];
+      // Sequential to respect quota
+      for (const u of all) inspections.push(await inspectOne(u));
+      if (url && inspections.length > 0) inspection = inspections[0];
     }
 
-    return json({ ok: true, sitemap_url: SITEMAP, pinged: pingResults, inspection, sitemap });
+    return json({ ok: true, sitemap_url: SITEMAP, pinged: pingResults, inspection, inspections, sitemap });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }

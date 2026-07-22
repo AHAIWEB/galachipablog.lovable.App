@@ -633,6 +633,23 @@ export default function AdminPosts() {
                      {(post as any).categories?.name && (
                        <span className="text-[10px] text-muted-foreground">{(post as any).categories.name}</span>
                      )}
+                     {inspectResults[post.id] && (() => {
+                       const r = inspectResults[post.id];
+                       const ok = r.verdict === "PASS" || r.coverageState?.startsWith("Submitted and indexed");
+                       const fail = r.error || r.verdict === "FAIL" || (r.coverageState && !ok);
+                       const cls = ok ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                         : fail ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                         : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300";
+                       const label = r.error ? `⚠ ${r.error.slice(0, 24)}`
+                         : r.verdict === "checking..." ? "⏳ চেক..."
+                         : `${ok ? "✅" : fail ? "❌" : "⚠"} ${r.coverageState || r.verdict || "unknown"}`;
+                       const title = [
+                         r.coverageState && `Coverage: ${r.coverageState}`,
+                         r.lastCrawlTime && `Last crawl: ${new Date(r.lastCrawlTime).toLocaleString("bn-BD")}`,
+                         r.canonicalMatch !== undefined && `Canonical match: ${r.canonicalMatch ? "yes" : "no"}`,
+                       ].filter(Boolean).join(" • ");
+                       return <span title={title} className={`text-[10px] px-1.5 py-0.5 rounded-full ${cls}`}>{label}</span>;
+                     })()}
                    </div>
                  </div>
                  <div className="flex gap-0.5 shrink-0">
@@ -643,6 +660,9 @@ export default function AdminPosts() {
                    }} className={`p-1.5 hover:bg-muted rounded ${post.is_featured ? "text-amber-500" : ""}`} title="ফিচার্ড">
                      <Star className={`h-3.5 w-3.5 ${post.is_featured ? "fill-current" : ""}`} />
                    </button>
+                   {post.status === "published" && (
+                     <button onClick={() => inspectSingle(post)} className="p-1.5 hover:bg-muted rounded text-green-600" title="Google URL Inspection + Reindex"><RefreshCw className="h-3.5 w-3.5" /></button>
+                   )}
                    <button onClick={() => sharePost(post)} className="p-1.5 hover:bg-muted rounded" title="শেয়ার"><Share2 className="h-3.5 w-3.5" /></button>
                    <button onClick={() => copyAsBloggerHtml(post)} className="p-1.5 hover:bg-muted rounded text-blue-600" title="Blogger HTML কপি (manual paste)"><Copy className="h-3.5 w-3.5" /></button>
                    <button onClick={() => publishBlogger(post)} className="p-1.5 hover:bg-muted rounded" title="Blogger API"><Globe className="h-3.5 w-3.5" /></button>

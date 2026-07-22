@@ -85,9 +85,42 @@ Deno.serve(async (req) => {
   }
 
   if (!imageUrl) {
-    return new Response("No image found", {
-      status: 404,
-      headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" },
+    // Ultimate fallback: generate a title-based SVG so every post has a preview.
+    const { data: post } = await supabase
+      .from("posts")
+      .select("title")
+      .eq("slug", slug)
+      .maybeSingle();
+    const title = (post?.title || "গালাচিপা ব্লগ").slice(0, 90);
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // Word-wrap Bengali title into up to 4 lines
+    const words = title.split(/\s+/);
+    const lines: string[] = [];
+    let cur = "";
+    for (const w of words) {
+      if ((cur + " " + w).trim().length > 22 && cur) { lines.push(cur.trim()); cur = w; }
+      else cur = (cur + " " + w).trim();
+      if (lines.length >= 3) break;
+    }
+    if (cur && lines.length < 4) lines.push(cur.trim());
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#1e3a8a"/><stop offset="1" stop-color="#0f766e"/>
+      </linearGradient></defs>
+      <rect width="1200" height="630" fill="url(#g)"/>
+      <rect x="40" y="40" width="1120" height="550" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" rx="18"/>
+      <text x="600" y="${330 - (lines.length - 1) * 46}" font-family="Noto Sans Bengali, sans-serif" font-size="64" font-weight="700" fill="#ffffff" text-anchor="middle">
+        ${lines.map((l, i) => `<tspan x="600" dy="${i === 0 ? 0 : 92}">${esc(l)}</tspan>`).join("")}
+      </text>
+      <text x="600" y="560" font-family="Noto Sans Bengali, sans-serif" font-size="28" fill="rgba(255,255,255,0.85)" text-anchor="middle">galachipablog.lovable.app</text>
+    </svg>`;
+    return new Response(svg, {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "image/svg+xml; charset=utf-8",
+        "Cache-Control": "public, max-age=86400, s-maxage=86400",
+      },
     });
   }
 

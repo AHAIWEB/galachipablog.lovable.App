@@ -184,6 +184,59 @@ export default function AdminPosts() {
     toast.success(`Blogger: ${success} সফল, ${fail} ব্যর্থ`);
   };
 
+  const bulkReindex = async () => {
+    const selected = (posts ?? []).filter(p => selectedIds.has(p.id) && p.status === "published");
+    if (selected.length === 0) return toast.error("প্রকাশিত পোস্ট সিলেক্ট করুন");
+    setInspecting(true);
+    const urls = selected.map(p => `${window.location.origin}/post/${p.slug}`);
+    try {
+      const { data, error } = await supabase.functions.invoke("seo-reindex", { body: { urls } });
+      if (error) throw error;
+      const map: typeof inspectResults = { ...inspectResults };
+      (data?.inspections || []).forEach((ins: any) => {
+        const slug = ins.url?.split("/post/")[1];
+        const post = selected.find(p => p.slug === slug);
+        if (post) map[post.id] = {
+          verdict: ins.verdict,
+          coverageState: ins.coverageState,
+          lastCrawlTime: ins.lastCrawlTime,
+          canonicalMatch: ins.canonicalMatch,
+          error: ins.error,
+        };
+      });
+      setInspectResults(map);
+      toast.success(`${selected.length}টি URL reindex রিকোয়েস্ট পাঠানো হয়েছে`);
+    } catch (e: any) {
+      toast.error(e.message || "Reindex ব্যর্থ");
+    }
+    setInspecting(false);
+  };
+
+  const inspectSingle = async (post: Post) => {
+    if (post.status !== "published") return toast.error("শুধু প্রকাশিত পোস্ট ইনস্পেক্ট করা যায়");
+    const url = `${window.location.origin}/post/${post.slug}`;
+    setInspectResults(prev => ({ ...prev, [post.id]: { verdict: "checking..." } }));
+    try {
+      const { data, error } = await supabase.functions.invoke("seo-reindex", { body: { urls: [url] } });
+      if (error) throw error;
+      const ins = data?.inspections?.[0];
+      setInspectResults(prev => ({
+        ...prev,
+        [post.id]: {
+          verdict: ins?.verdict,
+          coverageState: ins?.coverageState,
+          lastCrawlTime: ins?.lastCrawlTime,
+          canonicalMatch: ins?.canonicalMatch,
+          error: ins?.error,
+        },
+      }));
+      toast.success("ইনস্পেকশন সম্পন্ন");
+    } catch (e: any) {
+      toast.error(e.message || "ইনস্পেকশন ব্যর্থ");
+      setInspectResults(prev => ({ ...prev, [post.id]: { error: e.message } }));
+    }
+  };
+
   const sharePost = async (post: Post) => {
     const url = `${window.location.origin}/post/${post.slug}`;
     if (navigator.share) {

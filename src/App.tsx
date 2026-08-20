@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import SiteCustomizer from "@/components/SiteCustomizer";
+import BackendStatusWatchdog from "@/components/BackendStatusWatchdog";
 import Index from "./pages/Index";
 import PostDetail from "./pages/PostDetail";
 import CategoryPage from "./pages/CategoryPage";
@@ -46,6 +47,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <SiteCustomizer />
+        <BackendStatusWatchdog />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />

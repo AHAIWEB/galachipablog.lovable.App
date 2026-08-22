@@ -27,6 +27,8 @@ export default function MasonryGrid() {
   const [page, setPage] = useState(1);
   const [allPosts, setAllPosts] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
+  const [cachedAt, setCachedAt] = useState<Date | null>(null);
+
   const loaderRef = useRef<HTMLDivElement>(null);
 
   // Realtime subscription - auto-refresh when new posts are published

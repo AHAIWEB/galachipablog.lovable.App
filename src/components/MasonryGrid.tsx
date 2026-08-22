@@ -2,8 +2,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { loadCache, saveCache } from "@/lib/postCache";
 
 const PAGE_SIZE = 12;
+
 
 const aspectClasses = [
   "aspect-[3/4]",

@@ -127,7 +127,12 @@ export default function MasonryGrid() {
 
   return (
     <>
-      {/* True Pinterest-style CSS columns masonry */}
+      {cachedAt && (
+        <div className="mb-3 rounded-lg border border-border bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          অফলাইন মোড — সংরক্ষিত (ক্যাশড) পোস্ট দেখানো হচ্ছে • {cachedAt.toLocaleString("bn-BD")}
+        </div>
+      )}
+
       <div className="columns-2 sm:columns-2 md:columns-3 lg:columns-3 xl:columns-4 gap-3 [column-fill:_balance] stagger-fade">
         {allPosts.map((post, i) => {
           const catName = (post as any).categories?.name;

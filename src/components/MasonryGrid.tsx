@@ -2,8 +2,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { loadCache, saveCache } from "@/lib/postCache";
 
 const PAGE_SIZE = 12;
+
 
 const aspectClasses = [
   "aspect-[3/4]",
@@ -25,6 +27,8 @@ export default function MasonryGrid() {
   const [page, setPage] = useState(1);
   const [allPosts, setAllPosts] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
+  const [cachedAt, setCachedAt] = useState<Date | null>(null);
+
   const loaderRef = useRef<HTMLDivElement>(null);
 
   // Realtime subscription - auto-refresh when new posts are published
@@ -41,19 +45,22 @@ export default function MasonryGrid() {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  const { data, isFetching } = useQuery({
+  const { data, isFetching, isError } = useQuery({
     queryKey: ["masonry-posts", page],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("posts")
         .select("id, title, featured_image, slug, excerpt, categories(name, type)")
         .eq("status", "published")
         .order("created_at", { ascending: false })
         .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
       return data ?? [];
     },
     staleTime: 60000,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(30000, 1000 * 2 ** attempt),
   });
 
   useEffect(() => {
@@ -62,10 +69,24 @@ export default function MasonryGrid() {
       setAllPosts(prev => {
         const ids = new Set(prev.map(p => p.id));
         const newPosts = data.filter(p => !ids.has(p.id));
-        return [...prev, ...newPosts];
+        const merged = [...prev, ...newPosts];
+        if (page === 1 && merged.length) saveCache("masonry-posts", merged.slice(0, 36));
+        return merged;
       });
     }
-  }, [data]);
+  }, [data, page]);
+
+  // ডেটাবেস ডাউন হলে ক্যাশ থেকে দেখাই
+  useEffect(() => {
+    if (isError && allPosts.length === 0) {
+      const cached = loadCache<any[]>("masonry-posts");
+      if (cached?.data?.length) {
+        setAllPosts(cached.data);
+        setCachedAt(cached.at);
+        setHasMore(false);
+      }
+    }
+  }, [isError, allPosts.length]);
 
   const loadMore = useCallback(() => {
     if (!isFetching && hasMore) setPage(p => p + 1);
@@ -90,11 +111,28 @@ export default function MasonryGrid() {
     );
   }
 
+  if (allPosts.length === 0 && isError) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-card p-6 text-center">
+        <p className="font-heading font-semibold">পোস্ট লোড করা যায়নি</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          ডেটাবেস সংযোগ পাওয়া যাচ্ছে না এবং কোনো ক্যাশড পোস্টও নেই। স্বয়ংক্রিয়ভাবে আবার চেষ্টা চলছে।
+        </p>
+      </div>
+    );
+  }
+
   if (allPosts.length === 0) return null;
+
 
   return (
     <>
-      {/* True Pinterest-style CSS columns masonry */}
+      {cachedAt && (
+        <div className="mb-3 rounded-lg border border-border bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          অফলাইন মোড — সংরক্ষিত (ক্যাশড) পোস্ট দেখানো হচ্ছে • {cachedAt.toLocaleString("bn-BD")}
+        </div>
+      )}
+
       <div className="columns-2 sm:columns-2 md:columns-3 lg:columns-3 xl:columns-4 gap-3 [column-fill:_balance] stagger-fade">
         {allPosts.map((post, i) => {
           const catName = (post as any).categories?.name;

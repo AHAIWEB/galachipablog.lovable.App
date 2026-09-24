@@ -88,11 +88,46 @@ Deno.serve(async (req) => {
             { method: "POST", headers: gwHeaders, body: JSON.stringify({ inspectionUrl: u, siteUrl: SITE + "/" }) },
             15_000,
           );
+          const j: any = await insRes.json().catch(() => null);
+          const idx = j?.inspectionResult?.indexStatusResult;
+          return {
+            url: u,
+            status: insRes.status,
+            verdict: idx?.verdict,
+            coverageState: idx?.coverageState,
+            lastCrawlTime: idx?.lastCrawlTime,
+            userCanonical: idx?.userCanonical,
+            googleCanonical: idx?.googleCanonical,
+            canonicalMatch: idx?.userCanonical && idx?.googleCanonical ? idx.userCanonical === idx.googleCanonical : undefined,
+            error: insRes.ok ? undefined : (j?.error?.message ?? `HTTP ${insRes.status}`),
+          };
+        } catch (e) {
+          return { url: u, error: (e as Error).message };
+        }
+      };
 
+      const MAX_URLS = 20;
+      const CONCURRENCY = 4;
+      const all = [...new Set([...(url ? [url] : []), ...urls])];
+      const queue = all.slice(0, MAX_URLS);
+      skipped = all.slice(MAX_URLS);
+      const results: typeof inspections = new Array(queue.length);
+      let next = 0;
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+        while (next < queue.length) {
+          const i = next++;
+          if (Date.now() - started > DEADLINE_MS) {
+            results[i] = { url: queue[i], error: "skipped: time limit" };
+            continue;
+          }
+          results[i] = await inspectOne(queue[i]);
+        }
+      }));
+      inspections.push(...results);
       if (url && inspections.length > 0) inspection = inspections[0];
     }
 
-    return json({ ok: true, sitemap_url: SITEMAP, pinged: pingResults, inspection, inspections, sitemap });
+    return json({ ok: true, sitemap_url: SITEMAP, pinged: pingResults, inspection, inspections, sitemap, skipped });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }

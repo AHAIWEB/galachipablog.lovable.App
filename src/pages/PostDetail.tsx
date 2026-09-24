@@ -281,53 +281,15 @@ export default function PostDetail() {
             <div className="bg-card rounded-2xl border border-border p-6 md:p-8 mt-4 shadow-sm animate-fade-in prose-content">
               {(() => {
                 const raw = post.content || "";
-                // Detect HTML content
                 const looksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(raw);
                 if (!looksLikeHtml) {
                   return (
                     <div className="text-foreground/90 leading-relaxed text-base md:text-lg whitespace-pre-wrap font-body">
-                      {raw}
+                      {cleanArticleText(raw)}
                     </div>
                   );
                 }
-                // Sanitize: strip doctype/html/head/meta/link/title/script/style/body tags
-                let cleaned = raw;
-                const bodyMatch = cleaned.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-                if (bodyMatch) cleaned = bodyMatch[1];
-                cleaned = cleaned
-                  .replace(/<!DOCTYPE[^>]*>/gi, "")
-                  .replace(/<\/?html[^>]*>/gi, "")
-                  .replace(/<head[\s\S]*?<\/head>/gi, "")
-                  .replace(/<\/?body[^>]*>/gi, "")
-                  .replace(/<script[\s\S]*?<\/script>/gi, "")
-                  .replace(/<style[\s\S]*?<\/style>/gi, "")
-                  .replace(/<link[^>]*>/gi, "")
-                  .replace(/<meta[^>]*>/gi, "")
-                  .replace(/<base[^>]*>/gi, "")
-                  .replace(/<title[\s\S]*?<\/title>/gi, "");
-
-                // Strip common site-chrome noise blocks (nav / footer / share bars / related)
-                cleaned = cleaned
-                  .replace(/<(nav|header|footer|aside|form)[\s\S]*?<\/\1>/gi, "")
-                  .replace(/<(?:div|section)[^>]*class=["'][^"']*(menu|nav|sidebar|footer|share|social|related|comment|breadcrumb|widget|toolbar)[^"']*["'][\s\S]*?<\/(?:div|section)>/gi, "")
-                  .replace(/<(?:div|section)[^>]*id=["'][^"']*(menu|nav|sidebar|footer|share|social|related|comment|breadcrumb|widget|toolbar)[^"']*["'][\s\S]*?<\/(?:div|section)>/gi, "");
-
-                // Resolve relative/protocol-relative image URLs against source_url or Wikipedia
-                const sourceUrl = (post as any).source_url as string | undefined;
-                let base: string | null = null;
-                try { if (sourceUrl) base = new URL(sourceUrl).origin; } catch { /* ignore */ }
-                cleaned = cleaned.replace(/(<img[^>]+src=["'])(\/\/[^"']+)/gi, "$1https:$2");
-                if (base) {
-                  cleaned = cleaned.replace(/(<img[^>]+src=["'])(\/[^\/][^"']*)/gi, `$1${base}$2`);
-                }
-                // Bengali/Wikipedia specific: strip infobox junk headers like "লেখা"
-                cleaned = cleaned.replace(/<table[^>]*class=["'][^"']*(navbox|metadata|ambox|infobox-footer|reflist)[^"']*["'][\s\S]*?<\/table>/gi, "");
-
-                cleaned = DOMPurify.sanitize(cleaned, {
-                  USE_PROFILES: { html: true },
-                  FORBID_TAGS: ["style", "script", "iframe", "form", "input", "button", "object", "embed"],
-                  FORBID_ATTR: ["style", "onerror", "onload", "onclick", "onmouseover"],
-                });
+                const cleaned = cleanArticleHtml(raw, (post as any).source_url);
                 return (
                   <div
                     className="text-foreground/90 leading-relaxed text-base md:text-lg font-body wiki-content"
@@ -335,6 +297,7 @@ export default function PostDetail() {
                   />
                 );
               })()}
+
 
               {/* Source link with favicon */}
               {(post as any).source_url && (() => {

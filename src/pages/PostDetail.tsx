@@ -8,7 +8,7 @@ import { Calendar, Eye, Share2, Facebook, Twitter, Link as LinkIcon, ArrowLeft, 
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
-import DOMPurify from "dompurify";
+import { cleanArticleHtml, cleanArticleText } from "@/lib/cleanArticleHtml";
 
 
 export default function PostDetail() {

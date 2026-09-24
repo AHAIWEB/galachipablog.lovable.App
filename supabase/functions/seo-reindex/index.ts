@@ -35,19 +35,26 @@ Deno.serve(async (req) => {
     const url: string | undefined = body?.url;
     const urls: string[] = Array.isArray(body?.urls) ? body.urls.filter((u: any) => typeof u === "string") : [];
 
-    // --- Ping public sitemap endpoints
+    const started = Date.now();
+    const DEADLINE_MS = 100_000; // stay well under the 150s gateway limit
+    const tfetch = (input: string, init: RequestInit = {}, ms = 12_000) =>
+      fetch(input, { ...init, signal: AbortSignal.timeout(ms) });
+
+    // --- Ping public sitemap endpoints (parallel, short timeout)
     const pingResults: Record<string, number | string> = {};
-    for (const endpoint of [
+    await Promise.all([
       `https://www.google.com/ping?sitemap=${encodeURIComponent(SITEMAP)}`,
       `https://www.bing.com/ping?sitemap=${encodeURIComponent(SITEMAP)}`,
-    ]) {
+    ].map(async (endpoint) => {
+      const host = new URL(endpoint).host;
       try {
-        const r = await fetch(endpoint, { method: "GET" });
-        pingResults[new URL(endpoint).host] = r.status;
+        const r = await tfetch(endpoint, { method: "GET" }, 6_000);
+        pingResults[host] = r.status;
+        await r.body?.cancel();
       } catch (e) {
-        pingResults[endpoint] = (e as Error).message;
+        pingResults[host] = (e as Error).message;
       }
-    }
+    }));
 
     // --- Google Search Console: sitemap resubmit + per-URL inspection
     const gscKey = Deno.env.get("GOOGLE_SEARCH_CONSOLE_API_KEY");
@@ -55,6 +62,7 @@ Deno.serve(async (req) => {
     let inspection: unknown = null;
     let sitemap: unknown = null;
     const inspections: Array<{ url: string; verdict?: string; coverageState?: string; lastCrawlTime?: string; userCanonical?: string; googleCanonical?: string; canonicalMatch?: boolean; error?: string; status?: number }> = [];
+    let skipped: string[] = [];
 
     if (gscKey && lovableKey) {
       const gwHeaders = {
@@ -63,20 +71,22 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       };
       try {
-        const smRes = await fetch(
+        const smRes = await tfetch(
           `https://connector-gateway.lovable.dev/google_search_console/webmasters/v3/sites/${encodeURIComponent(SITE + "/")}/sitemaps/${encodeURIComponent(SITEMAP)}`,
           { method: "PUT", headers: gwHeaders },
+          15_000,
         );
-        sitemap = { status: smRes.status, body: await smRes.text() };
+        sitemap = { status: smRes.status, body: (await smRes.text()).slice(0, 500) };
       } catch (e) {
         sitemap = { error: (e as Error).message };
       }
 
       const inspectOne = async (u: string) => {
         try {
-          const insRes = await fetch(
+          const insRes = await tfetch(
             `https://connector-gateway.lovable.dev/google_search_console/v1/urlInspection/index:inspect`,
             { method: "POST", headers: gwHeaders, body: JSON.stringify({ inspectionUrl: u, siteUrl: SITE + "/" }) },
+            15_000,
           );
           const j: any = await insRes.json().catch(() => null);
           const idx = j?.inspectionResult?.indexStatusResult;
@@ -89,19 +99,35 @@ Deno.serve(async (req) => {
             userCanonical: idx?.userCanonical,
             googleCanonical: idx?.googleCanonical,
             canonicalMatch: idx?.userCanonical && idx?.googleCanonical ? idx.userCanonical === idx.googleCanonical : undefined,
+            error: insRes.ok ? undefined : (j?.error?.message ?? `HTTP ${insRes.status}`),
           };
         } catch (e) {
           return { url: u, error: (e as Error).message };
         }
       };
 
-      const all = [...(url ? [url] : []), ...urls];
-      // Sequential to respect quota
-      for (const u of all) inspections.push(await inspectOne(u));
+      const MAX_URLS = 20;
+      const CONCURRENCY = 4;
+      const all = [...new Set([...(url ? [url] : []), ...urls])];
+      const queue = all.slice(0, MAX_URLS);
+      skipped = all.slice(MAX_URLS);
+      const results: typeof inspections = new Array(queue.length);
+      let next = 0;
+      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+        while (next < queue.length) {
+          const i = next++;
+          if (Date.now() - started > DEADLINE_MS) {
+            results[i] = { url: queue[i], error: "skipped: time limit" };
+            continue;
+          }
+          results[i] = await inspectOne(queue[i]);
+        }
+      }));
+      inspections.push(...results);
       if (url && inspections.length > 0) inspection = inspections[0];
     }
 
-    return json({ ok: true, sitemap_url: SITEMAP, pinged: pingResults, inspection, inspections, sitemap });
+    return json({ ok: true, sitemap_url: SITEMAP, pinged: pingResults, inspection, inspections, sitemap, skipped });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }

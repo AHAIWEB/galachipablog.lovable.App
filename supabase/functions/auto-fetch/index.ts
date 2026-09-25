@@ -100,6 +100,7 @@ Deno.serve(async (req) => {
                 excerpt: article.excerpt || '',
                 featured_image: article.image || '',
                 category_id: feed.category_id || null,
+                is_featured: !!feed.is_featured,
                 source_url: article.link || '',
               });
             }
@@ -135,6 +136,7 @@ Deno.serve(async (req) => {
                 excerpt: article.excerpt || '',
                 featured_image: article.image || '',
                 category_id: feed.category_id || null,
+                is_featured: !!feed.is_featured,
                 source_url: article.link || feedUrl,
               });
             }
@@ -208,7 +210,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function autoPublishPost(supabase: any, article: { title: string; content: string; excerpt: string; featured_image: string; category_id: string | null; source_url?: string }) {
+async function autoPublishPost(supabase: any, article: { title: string; content: string; excerpt: string; featured_image: string; category_id: string | null; source_url?: string; is_featured?: boolean }) {
   try {
     const title = (article.title || '').trim();
     const junkPatterns = /^(privacy\s*policy|terms|about\s*us|contact|home|know\s*more|যোগাযোগ|শর্তাবলী|untitled)$/i;
@@ -224,7 +226,7 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
 
     // Strip editor / site-chrome noise from content
     let content = article.content || '';
-    if (content) {
+    if (content && !content.trim().startsWith('<')) {
       const noisePatterns = [
         // Site chrome / meta
         /সম্পাদক\s*[:：][^\n।]{0,200}/gi,
@@ -275,7 +277,7 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
       featured_image: article.featured_image || null,
       category_id: article.category_id,
       status: 'published',
-      is_featured: !!article.featured_image,
+      is_featured: !!article.is_featured,
       source_url: article.source_url || null,
     });
   } catch (e) {
@@ -308,6 +310,14 @@ async function fetchRSS(url: string) {
     const excerpt = desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500);
 
     items.push({ title, link, content, excerpt, image });
+  }
+  for (const it of items.slice(0, 10)) {
+    if (!it.link) continue;
+    try {
+      const d = await scrapeUrl(it.link);
+      if (d?.content && d.content.length > 200) it.content = d.content;
+      if (!it.image && d?.image) it.image = d.image;
+    } catch { /* keep RSS text */ }
   }
   return items;
 }
@@ -344,14 +354,7 @@ async function scrapeUrl(url: string) {
     if (bodyMatch) rawContent = bodyMatch[1];
   }
 
-  const content = rawContent
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 20000);
+  const content = extractArticleHtml(rawContent, url);
 
   // Extract images
   const images: string[] = [];
@@ -463,4 +466,62 @@ async function scrapeListingPage(url: string): Promise<{ title: string; link: st
   }
 
   return articles;
+}
+
+const NOISE_ATTR = /(menu|nav|sidebar|footer|header|share|social|related|recommend|comment|breadcrumb|widget|advert|\bads?\b|banner|subscribe|newsletter|popup|cookie|tags?\b|author|meta|pagination|trending|popular|most-read|print)/i;
+const NOISE_TEXT = /(শেয়ার|আরও পড়ুন|আরো পড়ুন|আরও দেখুন|সম্পর্কিত|সর্বশেষ|জনপ্রিয়|মন্তব্য|বিজ্ঞাপন|ফলো করুন|সাবস্ক্রাইব|ট্যাগ|কপিরাইট|সর্বস্বত্ব|সম্পাদক ও প্রকাশক|advertisement|read more|share this|follow us|subscribe|related|copyright|all rights reserved)/i;
+
+function decodeEntities(t: string) {
+  return t.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
+}
+
+/** Keep only real article paragraphs, sub-headings and in-body images. */
+function extractArticleHtml(raw: string, pageUrl: string): string {
+  if (!raw) return '';
+  let origin = '';
+  try { origin = new URL(pageUrl).origin; } catch { /* */ }
+  let h = raw
+    .replace(/<(script|style|noscript|nav|header|footer|aside|form|iframe|svg|button|select|figure[^>]*class=["'][^"']*(?:ad|share)[^"']*["'])[\s\S]*?<\/\1>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '');
+  // remove blocks whose class/id look like noise (single level)
+  h = h.replace(/<(div|section|ul|ol)[^>]*(?:class|id)=["'][^"']*["'][^>]*>/gi, (tag) => {
+    const attrs = (tag.match(/(?:class|id)=["']([^"']*)["']/gi) || []).join(' ');
+    return NOISE_ATTR.test(attrs) ? '<__noise__>' : tag;
+  });
+  h = h.replace(/<__noise__>[\s\S]*?<\/(div|section|ul|ol)>/gi, '');
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const re = /<(p|h2|h3|h4|blockquote|li)[^>]*>([\s\S]*?)<\/\1>|<img[^>]+>/gi;
+  let m;
+  while ((m = re.exec(h)) !== null) {
+    if (m[0].toLowerCase().startsWith('<img')) {
+      let src = m[0].match(/(?:data-src|src)=["']([^"']+)["']/i)?.[1] || '';
+      if (!src || src.startsWith('data:') || /logo|icon|avatar|ads?[\/_-]|pixel|sprite/i.test(src)) continue;
+      if (src.startsWith('//')) src = 'https:' + src; else if (src.startsWith('/')) src = origin + src;
+      if (!src.startsWith('http') || seen.has(src)) continue;
+      seen.add(src);
+      const alt = (m[0].match(/alt=["']([^"']*)["']/i)?.[1] || '').replace(/"/g, '');
+      out.push(`<img src="${src}" alt="${alt}" loading="lazy" />`);
+      continue;
+    }
+    const tag = m[1].toLowerCase();
+    const inner = m[2];
+    const text = decodeEntities(inner.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+    const linkText = (inner.match(/<a[^>]*>([\s\S]*?)<\/a>/gi) || []).map(a => a.replace(/<[^>]+>/g, '')).join('').trim().length;
+    if (linkText / text.length > 0.6) continue;
+    if (text.length < 140 && NOISE_TEXT.test(text)) continue;
+    if (tag === 'li' && text.length < 40) continue;
+    if (tag === 'p' && text.length < 25) continue;
+    if (seen.has(text)) continue;
+    seen.add(text);
+    const safe = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    out.push(tag === 'li' ? `<p>${safe}</p>` : `<${tag}>${safe}</${tag}>`);
+  }
+  // trim trailing images/short lines typical of footer
+  const html = out.join('\n');
+  if (html.replace(/<[^>]+>/g, '').length >= 150) return html.slice(0, 40000);
+  // fallback: plain text
+  return decodeEntities(h.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim().slice(0, 8000);
 }

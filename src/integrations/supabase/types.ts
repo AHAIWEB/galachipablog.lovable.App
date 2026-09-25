@@ -424,6 +424,7 @@ export type Database = {
           fetch_interval_minutes: number
           id: string
           is_active: boolean
+          is_featured: boolean
           last_fetched_at: string | null
           name: string
           type: Database["public"]["Enums"]["feed_type"]
@@ -436,6 +437,7 @@ export type Database = {
           fetch_interval_minutes?: number
           id?: string
           is_active?: boolean
+          is_featured?: boolean
           last_fetched_at?: string | null
           name: string
           type?: Database["public"]["Enums"]["feed_type"]
@@ -448,6 +450,7 @@ export type Database = {
           fetch_interval_minutes?: number
           id?: string
           is_active?: boolean
+          is_featured?: boolean
           last_fetched_at?: string | null
           name?: string
           type?: Database["public"]["Enums"]["feed_type"]
@@ -851,6 +854,14 @@ export type Database = {
       admin_set_user_verified: {
         Args: { _is_verified: boolean; _target_user_id: string }
         Returns: undefined
+      }
+      get_public_profiles: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          user_id: string
+        }[]
       }
       has_role: {
         Args: {

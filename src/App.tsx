@@ -30,6 +30,7 @@ import AdminSidebarWidgets from "./pages/admin/AdminSidebarWidgets";
 import AdminWebsiteLinks from "./pages/admin/AdminWebsiteLinks";
 import AdminThisDay from "./pages/admin/AdminThisDay";
 import AdminAiCard from "./pages/admin/AdminAiCard";
+import AdminFeatured from "./pages/admin/AdminFeatured";
 import AboutPage from "./pages/AboutPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
@@ -80,6 +81,7 @@ const App = () => (
               <Route path="website-links" element={<AdminWebsiteLinks />} />
               <Route path="this-day" element={<AdminThisDay />} />
               <Route path="ai-card" element={<AdminAiCard />} />
+              <Route path="featured" element={<AdminFeatured />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

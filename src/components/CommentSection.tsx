@@ -38,10 +38,7 @@ export default function CommentSection({ postId }: { postId: string }) {
 
       // Fetch profiles for all unique user_ids
       const userIds = [...new Set((allComments || []).map(c => c.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, display_name, avatar_url")
-        .in("user_id", userIds);
+      const { data: profiles } = await supabase.rpc("get_public_profiles", { _user_ids: userIds });
 
       // Check which comments user has liked
       let myLikes: string[] = [];

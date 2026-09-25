@@ -43,12 +43,13 @@ Deno.serve(async (req) => {
 
     const now = new Date();
     const results: any[] = [];
+    let onlySourceId: string | null = null;
+    try { const b = await req.clone().json(); if (typeof b?.source_id === 'string') onlySourceId = b.source_id; } catch { /* no body */ }
 
     // 1. Process feed_sources that are due
-    const { data: feeds } = await supabase
-      .from('feed_sources')
-      .select('*')
-      .eq('is_active', true);
+    let feedQuery = supabase.from('feed_sources').select('*').eq('is_active', true);
+    if (onlySourceId) feedQuery = feedQuery.eq('id', onlySourceId);
+    const { data: feeds } = await feedQuery;
 
     for (const feed of (feeds || [])) {
       // Normalize URL
@@ -66,7 +67,7 @@ Deno.serve(async (req) => {
       }
       const lastFetched = feed.last_fetched_at ? new Date(feed.last_fetched_at) : new Date(0);
       const minutesSince = (now.getTime() - lastFetched.getTime()) / 60000;
-      if (minutesSince < feed.fetch_interval_minutes) continue;
+      if (!onlySourceId && minutesSince < feed.fetch_interval_minutes) continue;
 
       try {
         if (feed.type === 'rss') {

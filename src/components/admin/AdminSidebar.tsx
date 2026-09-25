@@ -1,12 +1,13 @@
 import { NavLink as RouterNavLink } from "react-router-dom";
 import {
   LayoutDashboard, FileText, FolderTree, CreditCard, Users, Rss, Activity,
-  ImageIcon, Zap, Quote, Palette, Shield, Megaphone, Archive, PanelLeft, Link2, Calendar, Sparkles,
+  ImageIcon, Zap, Quote, Palette, Shield, Megaphone, Archive, PanelLeft, Link2, Calendar, Sparkles, Star,
 } from "lucide-react";
 
 const navItems = [
   { to: "/admin", icon: LayoutDashboard, label: "ড্যাশবোর্ড", end: true },
   { to: "/admin/posts", icon: FileText, label: "কন্টেন্ট হাব" },
+  { to: "/admin/featured", icon: Star, label: "ফিচার প্যানেল" },
   { to: "/admin/categories", icon: FolderTree, label: "ক্যাটাগরি" },
   { to: "/admin/cards", icon: CreditCard, label: "বিজনেস কার্ড" },
   { to: "/admin/ads", icon: Megaphone, label: "বিজ্ঞাপন" },

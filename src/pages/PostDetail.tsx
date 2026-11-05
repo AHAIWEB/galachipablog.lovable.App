@@ -134,9 +134,10 @@ export default function PostDetail() {
   // index.html meta tags. Share via the og-post edge function instead — it
   // returns per-post OG/Twitter meta and redirects real users to the SPA.
   const socialShareUrl = (() => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    if (!origin || !post?.slug) return shareUrl;
-    return `${origin}/share/${encodeURIComponent(post.slug)}`;
+    if (!post?.slug) return shareUrl;
+    // Hosting ignores _redirects, so link straight to the og-post function.
+    const site = "https://galachipablog.lovable.app";
+    return `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/og-post?slug=${encodeURIComponent(post.slug)}&site=${encodeURIComponent(site)}`;
   })();
 
   const trackShare = async () => {

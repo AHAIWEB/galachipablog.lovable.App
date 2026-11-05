@@ -262,6 +262,36 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
       content = content.replace(/[\|·»›→]{2,}/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
+    // Limit length so featured/auto posts stay short and source chrome is cut off
+    const MAX_CHARS = article.is_featured ? 3000 : 6000;
+    if (content.length > MAX_CHARS) {
+      if (content.trim().startsWith('<')) {
+        const paras = content.match(/<(p|h[2-4]|figure|img)[^>]*>[\s\S]*?(<\/\1>)?/gi) || [];
+        let out = ''; for (const p of paras) { if (out.length + p.length > MAX_CHARS) break; out += p; }
+        content = out || content.slice(0, MAX_CHARS);
+      } else {
+        const cut = content.slice(0, MAX_CHARS); const end = Math.max(cut.lastIndexOf('।'), cut.lastIndexOf('. '));
+        content = end > MAX_CHARS * 0.5 ? cut.slice(0, end + 1) : cut + '…';
+      }
+    }
+
+    // Image fallback: if no/small image, take the biggest-looking image from content or source og:image
+    let image = article.featured_image || '';
+    const looksSmall = (u: string) => !u || /(\b|_|-)(\d{2,3})x(\d{2,3})\b|thumb|icon|logo|avatar|150x|100x/i.test(u) && !/\d{4}x/.test(u);
+    if (looksSmall(image)) {
+      const imgs = [...(article.content || '').matchAll(/<img[^>]+src=["']([^"']+)["']/gi)].map(m => m[1]).filter(u => /^https?:|^\/\//.test(u) && !looksSmall(u));
+      if (imgs[0]) image = imgs[0].startsWith('//') ? 'https:' + imgs[0] : imgs[0];
+      else if (article.source_url) {
+        try {
+          const r = await fetch(article.source_url, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+          const h = (await r.text()).slice(0, 200000);
+          const og = h.match(/<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)/i)?.[1] || h.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image/i)?.[1];
+          if (og) image = new URL(og, article.source_url).href;
+        } catch { /* ignore */ }
+      }
+    }
+    article.featured_image = image;
+
     const slug = title.toLowerCase().replace(/[^a-z0-9\u0980-\u09FF]+/g, '-').replace(/^-|-$/g, '').slice(0, 200) + '-' + Date.now();
     const { data: existing } = await supabase
       .from('posts')
@@ -280,6 +310,15 @@ async function autoPublishPost(supabase: any, article: { title: string; content:
       is_featured: !!article.is_featured,
       source_url: article.source_url || null,
     });
+    // Ping Google with the new on-site URL (best-effort, non-blocking)
+    if (article.is_featured) {
+      fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/seo-reindex`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+        body: JSON.stringify({ url: `https://galachipablog.lovable.app/post/${slug}` }),
+        signal: AbortSignal.timeout(20000),
+      }).catch(() => {});
+    }
   } catch (e) {
     console.error('Auto-publish error:', (e as Error).message);
   }

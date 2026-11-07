@@ -14,7 +14,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-const stripHtml = (s: string) => s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+const stripHtml = (s: string) => s.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ").replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
 const decodeHtmlEntities = (s: string) =>
   Array.from({ length: 3 }).reduce((value) =>
@@ -59,11 +59,17 @@ const normalizeImageUrl = (raw: string, siteOrigin: string) => {
 };
 
 const buildProxyImageUrl = (siteOrigin: string, slug: string, version?: string) => {
-  const params = new URLSearchParams();
-  if (version) params.set("v", version);
-  const suffix = params.toString() ? `?${params.toString()}` : "";
-  return `${siteOrigin.replace(/\/$/, "")}/share-image/${encodeURIComponent(slug)}${suffix}`;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (!supabaseUrl) return "";
+  const imageUrl = new URL(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/og-image`);
+  imageUrl.searchParams.set("slug", slug);
+  imageUrl.searchParams.set("site", siteOrigin);
+  if (version) imageUrl.searchParams.set("v", version);
+  return imageUrl.toString();
 };
+
+const isSocialCrawler = (userAgent: string) =>
+  /facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|slackbot|discordbot|pinterest|googlebot|bingbot/i.test(userAgent);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -115,7 +121,10 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (data) {
       title = data.title || title;
-      description = (data.excerpt || stripHtml(data.content || "").slice(0, 200) || description).slice(0, 300);
+      const excerpt = data.excerpt || "";
+      const genericExcerpt = /the daily .* is a bangla newspaper|name of the editor|circulation of the newspaper|a bangla newspaper of bangladesh/i.test(excerpt);
+      const contentDescription = decodeHtmlEntities(stripHtml(data.content || ""));
+      description = ((genericExcerpt ? "" : excerpt) || contentDescription.slice(0, 200) || description).slice(0, 300);
       image = normalizeImageUrl(data.featured_image || extractFirstImage(data.content || ""), siteOrigin);
       updatedAt = data.updated_at || "";
     }
@@ -152,19 +161,29 @@ ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}" />
 <meta name="twitter:description" content="${escapeHtml(description)}" />
 ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : ""}
 
-<meta http-equiv="refresh" content="0; url=${escapeHtml(targetUrl)}" />
-<script>window.location.replace(${JSON.stringify(targetUrl)});</script>
 </head>
 <body>
-<p>Redirecting to <a href="${escapeHtml(targetUrl)}">${escapeHtml(title)}</a>...</p>
+<p><a href="${escapeHtml(targetUrl)}">${escapeHtml(title)}</a></p>
 </body>
 </html>`;
 
+  const headers = new Headers(corsHeaders);
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  headers.set("Cache-Control", "public, max-age=300");
+
+  // Social crawlers must receive the metadata page itself; an HTML redirect can
+  // make them follow the SPA route and replace the post preview with the homepage.
+  if (!isSocialCrawler(req.headers.get("user-agent") ?? "")) {
+    const redirectHeaders = new Headers(headers);
+    redirectHeaders.set("Location", targetUrl);
+    redirectHeaders.set("Cache-Control", "public, max-age=60");
+    return new Response(null, {
+      status: 302,
+      headers: redirectHeaders,
+    });
+  }
+
   return new Response(html, {
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "public, max-age=300",
-    },
+    headers,
   });
 });

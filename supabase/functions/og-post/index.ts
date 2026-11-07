@@ -167,18 +167,19 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}" />` : "
 </body>
 </html>`;
 
-  const headers = {
-    ...corsHeaders,
-    "Content-Type": "text/html; charset=utf-8",
-    "Cache-Control": "public, max-age=300",
-  };
+  const headers = new Headers(corsHeaders);
+  headers.set("Content-Type", "text/html; charset=utf-8");
+  headers.set("Cache-Control", "public, max-age=300");
 
   // Social crawlers must receive the metadata page itself; an HTML redirect can
   // make them follow the SPA route and replace the post preview with the homepage.
   if (!isSocialCrawler(req.headers.get("user-agent") ?? "")) {
+    const redirectHeaders = new Headers(headers);
+    redirectHeaders.set("Location", targetUrl);
+    redirectHeaders.set("Cache-Control", "public, max-age=60");
     return new Response(null, {
       status: 302,
-      headers: { ...headers, "Location": targetUrl, "Cache-Control": "public, max-age=60" },
+      headers: redirectHeaders,
     });
   }
 
